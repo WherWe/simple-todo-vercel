@@ -17,6 +17,7 @@ export default function TodoApp() {
   const [editText, setEditText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   // Load todos from API on component mount
   useEffect(() => {
@@ -27,15 +28,52 @@ export default function TodoApp() {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/todos');
+      setNeedsSetup(false);
+      const response = await fetch("/api/todos");
+      
+      if (response.status === 503) {
+        const errorData = await response.json();
+        if (errorData.needsSetup) {
+          setNeedsSetup(true);
+          setError("Database needs to be initialized. Click the button below to set it up.");
+          return;
+        }
+      }
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch todos');
+        throw new Error("Failed to fetch todos");
       }
       const todosData = await response.json();
       setTodos(todosData);
     } catch (err) {
-      setError('Failed to load todos');
-      console.error('Error fetching todos:', err);
+      setError("Failed to load todos");
+      console.error("Error fetching todos:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setupDatabase = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch("/api/setup", {
+        method: "POST",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to setup database");
+      }
+      
+      const result = await response.json();
+      console.log(result.message);
+      
+      // After successful setup, try to fetch todos again
+      await fetchTodos();
+      setNeedsSetup(false);
+    } catch (err) {
+      setError("Failed to setup database");
+      console.error("Error setting up database:", err);
     } finally {
       setLoading(false);
     }
@@ -44,67 +82,67 @@ export default function TodoApp() {
   const addTodo = async () => {
     if (inputText.trim() !== "") {
       try {
-        const response = await fetch('/api/todos', {
-          method: 'POST',
+        const response = await fetch("/api/todos", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ text: inputText.trim() }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to create todo');
+          throw new Error("Failed to create todo");
         }
 
         const newTodo = await response.json();
         setTodos([newTodo, ...todos]);
         setInputText("");
       } catch (err) {
-        setError('Failed to add todo');
-        console.error('Error adding todo:', err);
+        setError("Failed to add todo");
+        console.error("Error adding todo:", err);
       }
     }
   };
 
   const toggleTodo = async (id: number) => {
-    const todo = todos.find(t => t.id === id);
+    const todo = todos.find((t) => t.id === id);
     if (!todo) return;
 
     try {
       const response = await fetch(`/api/todos/${id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ completed: !todo.completed }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update todo');
+        throw new Error("Failed to update todo");
       }
 
       const updatedTodo = await response.json();
       setTodos(todos.map((t) => (t.id === id ? updatedTodo : t)));
     } catch (err) {
-      setError('Failed to update todo');
-      console.error('Error updating todo:', err);
+      setError("Failed to update todo");
+      console.error("Error updating todo:", err);
     }
   };
 
   const deleteTodo = async (id: number) => {
     try {
       const response = await fetch(`/api/todos/${id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete todo');
+        throw new Error("Failed to delete todo");
       }
 
       setTodos(todos.filter((todo) => todo.id !== id));
     } catch (err) {
-      setError('Failed to delete todo');
-      console.error('Error deleting todo:', err);
+      setError("Failed to delete todo");
+      console.error("Error deleting todo:", err);
     }
   };
 
@@ -117,22 +155,22 @@ export default function TodoApp() {
     if (editText.trim() !== "") {
       try {
         const response = await fetch(`/api/todos/${id}`, {
-          method: 'PUT',
+          method: "PUT",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({ text: editText.trim() }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to update todo');
+          throw new Error("Failed to update todo");
         }
 
         const updatedTodo = await response.json();
         setTodos(todos.map((todo) => (todo.id === id ? updatedTodo : todo)));
       } catch (err) {
-        setError('Failed to update todo');
-        console.error('Error updating todo:', err);
+        setError("Failed to update todo");
+        console.error("Error updating todo:", err);
       }
     }
     setEditingId(null);
@@ -153,21 +191,17 @@ export default function TodoApp() {
   };
 
   const clearCompleted = async () => {
-    const completedTodos = todos.filter(todo => todo.completed);
-    
+    const completedTodos = todos.filter((todo) => todo.completed);
+
     try {
       // Delete all completed todos
-      await Promise.all(
-        completedTodos.map(todo => 
-          fetch(`/api/todos/${todo.id}`, { method: 'DELETE' })
-        )
-      );
-      
+      await Promise.all(completedTodos.map((todo) => fetch(`/api/todos/${todo.id}`, { method: "DELETE" })));
+
       // Update local state
       setTodos(todos.filter((todo) => !todo.completed));
     } catch (err) {
-      setError('Failed to clear completed todos');
-      console.error('Error clearing completed todos:', err);
+      setError("Failed to clear completed todos");
+      console.error("Error clearing completed todos:", err);
     }
   };
 
@@ -186,10 +220,18 @@ export default function TodoApp() {
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
-          <button 
-            onClick={() => setError(null)} 
-            className="ml-2 text-red-500 hover:text-red-700"
-          >
+          {needsSetup && (
+            <div className="mt-3">
+              <button 
+                onClick={setupDatabase}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed mr-2"
+              >
+                {loading ? 'Setting up...' : 'Setup Database'}
+              </button>
+            </div>
+          )}
+          <button onClick={() => setError(null)} className="ml-2 text-red-500 hover:text-red-700">
             ✕
           </button>
         </div>
@@ -206,21 +248,17 @@ export default function TodoApp() {
           disabled={loading}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
         />
-        <button 
-          onClick={addTodo} 
+        <button
+          onClick={addTodo}
           disabled={loading || !inputText.trim()}
           className="px-6 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Adding...' : 'Add'}
+          {loading ? "Adding..." : "Add"}
         </button>
       </div>
 
       {/* Loading State */}
-      {loading && todos.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          Loading todos...
-        </div>
-      )}
+      {loading && todos.length === 0 && <div className="text-center py-8 text-gray-500">Loading todos...</div>}
 
       {/* Stats */}
       {totalCount > 0 && (
