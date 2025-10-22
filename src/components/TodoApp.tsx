@@ -217,9 +217,7 @@ export default function TodoApp() {
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       {/* Version Info */}
-      <div className="text-xs text-gray-400 mb-2 text-right">
-        Last updated: {new Date().toISOString().slice(0, 19).replace('T', ' ')} UTC
-      </div>
+      <div className="text-xs text-gray-400 mb-2 text-right">Last updated: {new Date().toISOString().slice(0, 19).replace("T", " ")} UTC</div>
 
       {/* Error Message */}
       {error && (
@@ -247,19 +245,7 @@ export default function TodoApp() {
           onKeyPress={handleKeyPress}
           placeholder="Add a new todo..."
           disabled={loading}
-          style={{
-            flex: '1',
-            padding: '8px 16px',
-            border: '1px solid #d1d5db',
-            borderTopLeftRadius: '8px',
-            borderBottomLeftRadius: '8px',
-            borderRight: 'none',
-            outline: 'none',
-            fontSize: '16px',
-            color: '#000000',
-            backgroundColor: '#ffffff',
-            opacity: loading ? '0.5' : '1'
-          }}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base"
         />
         <button
           onClick={addTodo}
@@ -297,16 +283,7 @@ export default function TodoApp() {
                   onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
                   onBlur={() => saveEdit(todo.id)}
                   autoFocus
-                  style={{
-                    flex: '1',
-                    padding: '4px 8px',
-                    border: '2px solid #3b82f6',
-                    borderRadius: '4px',
-                    outline: 'none',
-                    fontSize: '16px',
-                    color: '#000000',
-                    backgroundColor: '#ffffff'
-                  }}
+                  className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
                 />
               ) : (
                 <span className={`flex-1 cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`} onClick={() => startEdit(todo.id, todo.text)} title="Click to edit">

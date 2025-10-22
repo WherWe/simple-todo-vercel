@@ -25,31 +25,8 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Force input text to be black regardless of color scheme - AGGRESSIVE OVERRIDE */
-input[type="text"],
-input[type="text"]:focus,
-input[type="text"]:active,
-input[type="text"]:hover,
-.todo-input,
-div input[type="text"],
-* input[type="text"] {
-  color: #000000 !important;
-  background-color: #ffffff !important;
-  border: 1px solid #d1d5db !important;
-}
-
-/* Even more specific overrides */
-html input[type="text"],
-html body input[type="text"],
-html body div input[type="text"] {
-  color: #000000 !important;
-  background-color: #ffffff !important;
-}
-
-/* Override any inherited color */
-input {
-  color: inherit;
-}
+/* Ensure input text is always visible - clean override */
 input[type="text"] {
   color: #000000 !important;
+  background-color: #ffffff !important;
 }
