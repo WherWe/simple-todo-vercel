@@ -25,6 +25,8 @@ export default function TodoApp() {
     return [];
   });
   const [inputText, setInputText] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
 
   // Save todos to localStorage whenever todos change
   useEffect(() => {
@@ -52,6 +54,32 @@ export default function TodoApp() {
 
   const deleteTodo = (id: number) => {
     setTodos(todos.filter((todo) => todo.id !== id));
+  };
+
+  const startEdit = (id: number, currentText: string) => {
+    setEditingId(id);
+    setEditText(currentText);
+  };
+
+  const saveEdit = (id: number) => {
+    if (editText.trim() !== "") {
+      setTodos(todos.map((todo) => (todo.id === id ? { ...todo, text: editText.trim() } : todo)));
+    }
+    setEditingId(null);
+    setEditText("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText("");
+  };
+
+  const handleEditKeyPress = (e: React.KeyboardEvent, id: number) => {
+    if (e.key === "Enter") {
+      saveEdit(id);
+    } else if (e.key === "Escape") {
+      cancelEdit();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -95,10 +123,48 @@ export default function TodoApp() {
           todos.map((todo) => (
             <div key={todo.id} className={`flex items-center p-3 border rounded-lg transition-all ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"}`}>
               <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-              <span className={`flex-1 ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}>{todo.text}</span>
-              <button onClick={() => deleteTodo(todo.id)} className="ml-3 px-3 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
-                ✕
-              </button>
+              
+              {editingId === todo.id ? (
+                <input
+                  type="text"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
+                  onBlur={() => saveEdit(todo.id)}
+                  className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              ) : (
+                <span 
+                  className={`flex-1 cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
+                  onClick={() => startEdit(todo.id, todo.text)}
+                  title="Click to edit"
+                >
+                  {todo.text}
+                </span>
+              )}
+
+              <div className="flex gap-1 ml-3">
+                {editingId === todo.id ? (
+                  <>
+                    <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
+                      ✓
+                    </button>
+                    <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
+                      ✏️
+                    </button>
+                    <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
+                      ✕
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))
         )}
