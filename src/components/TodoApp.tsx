@@ -242,7 +242,7 @@ export default function TodoApp() {
           onKeyPress={handleKeyPress}
           placeholder="Add a new todo..."
           disabled={loading}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-gray-800"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-black bg-white"
         />
         <button
           onClick={addTodo}
@@ -279,7 +279,7 @@ export default function TodoApp() {
                   onChange={(e) => setEditText(e.target.value)}
                   onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
                   onBlur={() => saveEdit(todo.id)}
-                  className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+                  className="flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white"
                   autoFocus
                 />
               ) : (

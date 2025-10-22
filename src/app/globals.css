@@ -24,3 +24,9 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Force input text to be black regardless of color scheme */
+input[type="text"] {
+  color: #000000 !important;
+  background-color: #ffffff !important;
+}
