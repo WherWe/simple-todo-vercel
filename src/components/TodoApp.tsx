@@ -6,54 +6,106 @@ interface Todo {
   id: number;
   text: string;
   completed: boolean;
-  createdAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export default function TodoApp() {
-  const [todos, setTodos] = useState<Todo[]>(() => {
-    // Load todos from localStorage on initial render
-    if (typeof window !== "undefined") {
-      const savedTodos = localStorage.getItem("todos");
-      if (savedTodos) {
-        const parsedTodos = JSON.parse(savedTodos).map((todo: Omit<Todo, "createdAt"> & { createdAt: string }) => ({
-          ...todo,
-          createdAt: new Date(todo.createdAt),
-        }));
-        return parsedTodos;
-      }
-    }
-    return [];
-  });
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [inputText, setInputText] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Save todos to localStorage whenever todos change
+  // Load todos from API on component mount
   useEffect(() => {
-    if (todos.length > 0) {
-      localStorage.setItem("todos", JSON.stringify(todos));
-    }
-  }, [todos]);
+    fetchTodos();
+  }, []);
 
-  const addTodo = () => {
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/todos');
+      if (!response.ok) {
+        throw new Error('Failed to fetch todos');
+      }
+      const todosData = await response.json();
+      setTodos(todosData);
+    } catch (err) {
+      setError('Failed to load todos');
+      console.error('Error fetching todos:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addTodo = async () => {
     if (inputText.trim() !== "") {
-      const newTodo: Todo = {
-        id: Date.now(),
-        text: inputText.trim(),
-        completed: false,
-        createdAt: new Date(),
-      };
-      setTodos([...todos, newTodo]);
-      setInputText("");
+      try {
+        const response = await fetch('/api/todos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: inputText.trim() }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create todo');
+        }
+
+        const newTodo = await response.json();
+        setTodos([newTodo, ...todos]);
+        setInputText("");
+      } catch (err) {
+        setError('Failed to add todo');
+        console.error('Error adding todo:', err);
+      }
     }
   };
 
-  const toggleTodo = (id: number) => {
-    setTodos(todos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo)));
+  const toggleTodo = async (id: number) => {
+    const todo = todos.find(t => t.id === id);
+    if (!todo) return;
+
+    try {
+      const response = await fetch(`/api/todos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ completed: !todo.completed }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update todo');
+      }
+
+      const updatedTodo = await response.json();
+      setTodos(todos.map((t) => (t.id === id ? updatedTodo : t)));
+    } catch (err) {
+      setError('Failed to update todo');
+      console.error('Error updating todo:', err);
+    }
   };
 
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
+  const deleteTodo = async (id: number) => {
+    try {
+      const response = await fetch(`/api/todos/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete todo');
+      }
+
+      setTodos(todos.filter((todo) => todo.id !== id));
+    } catch (err) {
+      setError('Failed to delete todo');
+      console.error('Error deleting todo:', err);
+    }
   };
 
   const startEdit = (id: number, currentText: string) => {
@@ -61,9 +113,27 @@ export default function TodoApp() {
     setEditText(currentText);
   };
 
-  const saveEdit = (id: number) => {
+  const saveEdit = async (id: number) => {
     if (editText.trim() !== "") {
-      setTodos(todos.map((todo) => (todo.id === id ? { ...todo, text: editText.trim() } : todo)));
+      try {
+        const response = await fetch(`/api/todos/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: editText.trim() }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update todo');
+        }
+
+        const updatedTodo = await response.json();
+        setTodos(todos.map((todo) => (todo.id === id ? updatedTodo : todo)));
+      } catch (err) {
+        setError('Failed to update todo');
+        console.error('Error updating todo:', err);
+      }
     }
     setEditingId(null);
     setEditText("");
@@ -82,6 +152,25 @@ export default function TodoApp() {
     }
   };
 
+  const clearCompleted = async () => {
+    const completedTodos = todos.filter(todo => todo.completed);
+    
+    try {
+      // Delete all completed todos
+      await Promise.all(
+        completedTodos.map(todo => 
+          fetch(`/api/todos/${todo.id}`, { method: 'DELETE' })
+        )
+      );
+      
+      // Update local state
+      setTodos(todos.filter((todo) => !todo.completed));
+    } catch (err) {
+      setError('Failed to clear completed todos');
+      console.error('Error clearing completed todos:', err);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       addTodo();
@@ -93,6 +182,19 @@ export default function TodoApp() {
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+          <button 
+            onClick={() => setError(null)} 
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Input Section */}
       <div className="flex mb-6">
         <input
@@ -101,12 +203,24 @@ export default function TodoApp() {
           onChange={(e) => setInputText(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Add a new todo..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          disabled={loading}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
         />
-        <button onClick={addTodo} className="px-6 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-          Add
+        <button 
+          onClick={addTodo} 
+          disabled={loading || !inputText.trim()}
+          className="px-6 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Adding...' : 'Add'}
         </button>
       </div>
+
+      {/* Loading State */}
+      {loading && todos.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Loading todos...
+        </div>
+      )}
 
       {/* Stats */}
       {totalCount > 0 && (
@@ -123,7 +237,7 @@ export default function TodoApp() {
           todos.map((todo) => (
             <div key={todo.id} className={`flex items-center p-3 border rounded-lg transition-all ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"}`}>
               <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-              
+
               {editingId === todo.id ? (
                 <input
                   type="text"
@@ -135,11 +249,7 @@ export default function TodoApp() {
                   autoFocus
                 />
               ) : (
-                <span 
-                  className={`flex-1 cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
-                  onClick={() => startEdit(todo.id, todo.text)}
-                  title="Click to edit"
-                >
+                <span className={`flex-1 cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`} onClick={() => startEdit(todo.id, todo.text)} title="Click to edit">
                   {todo.text}
                 </span>
               )}
@@ -173,7 +283,7 @@ export default function TodoApp() {
       {/* Clear completed button */}
       {completedCount > 0 && (
         <div className="mt-6 text-center">
-          <button onClick={() => setTodos(todos.filter((todo) => !todo.completed))} className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+          <button onClick={clearCompleted} className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
             Clear completed ({completedCount})
           </button>
         </div>
