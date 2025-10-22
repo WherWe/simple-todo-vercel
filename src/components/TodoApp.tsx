@@ -10,20 +10,21 @@ interface Todo {
 }
 
 export default function TodoApp() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [inputText, setInputText] = useState("");
-
-  // Load todos from localStorage on component mount
-  useEffect(() => {
-    const savedTodos = localStorage.getItem("todos");
-    if (savedTodos) {
-      const parsedTodos = JSON.parse(savedTodos).map((todo: any) => ({
-        ...todo,
-        createdAt: new Date(todo.createdAt),
-      }));
-      setTodos(parsedTodos);
+  const [todos, setTodos] = useState<Todo[]>(() => {
+    // Load todos from localStorage on initial render
+    if (typeof window !== "undefined") {
+      const savedTodos = localStorage.getItem("todos");
+      if (savedTodos) {
+        const parsedTodos = JSON.parse(savedTodos).map((todo: Omit<Todo, "createdAt"> & { createdAt: string }) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt),
+        }));
+        return parsedTodos;
+      }
     }
-  }, []);
+    return [];
+  });
+  const [inputText, setInputText] = useState("");
 
   // Save todos to localStorage whenever todos change
   useEffect(() => {
