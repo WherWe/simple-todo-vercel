@@ -243,7 +243,7 @@ export default function TodoApp() {
           placeholder="Add a new todo..."
           disabled={loading}
           className="todo-input flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-          style={{ color: '#000000', backgroundColor: '#ffffff' }}
+          style={{ color: "#000000", backgroundColor: "#ffffff" }}
         />
         <button
           onClick={addTodo}
@@ -281,7 +281,7 @@ export default function TodoApp() {
                   onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
                   onBlur={() => saveEdit(todo.id)}
                   className="todo-input flex-1 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                  style={{ color: "#000000", backgroundColor: "#ffffff" }}
                   autoFocus
                 />
               ) : (
