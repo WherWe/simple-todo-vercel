@@ -1,9 +1,9 @@
-import { sql } from '@vercel/postgres';
+import { sql } from "@vercel/postgres";
 
 async function setupDatabase() {
   try {
-    console.log('Setting up database...');
-    
+    console.log("Setting up database...");
+
     // Create the todos table
     await sql`
       CREATE TABLE IF NOT EXISTS todos (
@@ -14,10 +14,10 @@ async function setupDatabase() {
         updated_at timestamp DEFAULT now() NOT NULL
       );
     `;
-    
-    console.log('Database setup complete!');
+
+    console.log("Database setup complete!");
   } catch (error) {
-    console.error('Error setting up database:', error);
+    console.error("Error setting up database:", error);
     throw error;
   }
 }

@@ -9,15 +9,18 @@ export async function GET() {
     return NextResponse.json(allTodos);
   } catch (error) {
     console.error("Error fetching todos:", error);
-    
+
     // Check if it's a table doesn't exist error
     if (error instanceof Error && error.message.includes('relation "todos" does not exist')) {
-      return NextResponse.json({ 
-        error: "Database not initialized. Please set up the database first.",
-        needsSetup: true 
-      }, { status: 503 });
+      return NextResponse.json(
+        {
+          error: "Database not initialized. Please set up the database first.",
+          needsSetup: true,
+        },
+        { status: 503 }
+      );
     }
-    
+
     return NextResponse.json({ error: "Failed to fetch todos" }, { status: 500 });
   }
 }
