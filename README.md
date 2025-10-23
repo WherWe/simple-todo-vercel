@@ -23,6 +23,16 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 - 📊 **Priority Assignment**: AI determines task priority (high, medium, low)
 - 📅 **Date Inference**: Extracts due dates from phrases like "tomorrow", "next week", "Friday"
 - 🔄 **Dual AI Providers**: Uses Claude (Anthropic) with OpenAI GPT fallback
+- ⚡ **Draft Queue System**: Type freely - todos queue instantly and process in background (FIFO)
+- 🗂️ **Smart Date Grouping**: Organizes todos by Overdue, Today, Tomorrow, This Week, Later, No Due Date
+- 🚀 **Optimistic UI**: Deletes happen instantly, rollback on failure for smooth UX
+- 🎨 **Two-Column Layout**: Chat-style input on left, organized todos on right (desktop)
+- 🔍 **Intelligent Query Detection**: Ask questions like "What's urgent?" - AI filters and highlights matching todos
+- 💬 **Conversational Interface**: Natural language queries with AI-powered responses
+- 🔎 **Advanced Search & Filters**: Live text search with quick filters for priority, tags, status, and dates
+- ⌨️ **Keyboard Shortcuts**: Press `/` to focus search, `Esc` to clear all filters
+- 🎨 **Search Highlighting**: Yellow highlight on matching text in todos
+- 📊 **What's Ahead Summary**: Conversational AI-generated summary panel showing upcoming tasks at a glance
 
 ## 🚀 Tech Stack
 
@@ -103,6 +113,107 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🤖 Using AI Features
 
+### Intelligent Query Detection (NEW!)
+
+The app automatically detects if you're asking a question or creating todos:
+
+**Ask questions naturally:**
+
+```
+"What's urgent?"
+"Show me work stuff"
+"What's due next week?"
+"What am I forgetting?"
+```
+
+**AI Response:**
+
+- 🤖 Chat bubble appears with natural language answer
+- 🎯 Matching todos are highlighted with blue ring
+- 🌫️ Non-matching todos fade out (30% opacity)
+- 🔍 Keywords shown as badges
+- ⏱️ Auto-clears after 10 seconds (or click "Clear filter")
+
+**Example:**
+
+```
+[You type]: "show me urgent tasks"
+[AI responds]: "Here are your urgent tasks: Fix production bug and Client meeting prep."
+[Visual]: Todos #1 and #3 highlighted, others faded
+```
+
+### Advanced Search & Filters (NEW!)
+
+**Live Text Search:**
+
+- Type in search bar to filter todos by text
+- Yellow highlighting on matching terms
+- Press `/` to focus search, `Esc` to clear all filters
+
+**Quick Filter Chips:**
+
+- **Priority**: High (red) / Medium (yellow) / Low (gray)
+- **Tags**: Dynamically generated from your todos (#work, #personal, etc.)
+- **Status**: All / Active / Completed
+- **Date**: Overdue / Today / This Week
+
+**Combined Filtering:**
+
+- All filters work together (AND logic)
+- AI query filter applied first, then manual filters
+- Active filter indicator shows "X of Y todos"
+
+### What's Ahead Summary (NEW!)
+
+Conversational AI-generated summary panel appears below the chat input:
+
+**Features:**
+
+- 📊 **Narrative format**: Reads like a personal assistant telling you what's ahead
+- 🎯 **Actual todo names**: Shows 2-3 specific items per section (not just counts)
+- ⚠️ **Priority sections**: Overdue, Today, Tomorrow, This Week, Urgent
+- 💬 **Friendly messages**: "Nothing scheduled! You're free to focus on other things"
+- 🎨 **Bold formatting**: Section headers in **bold** for easy scanning
+- 🔄 **Auto-updates**: Regenerates as you add/complete todos
+
+**Example:**
+
+```
+What's Ahead
+
+⚠️ 2 overdue items: Fix production bug, Call dentist...
+
+📅 Today (2 tasks):
+• Prepare for Shabbat
+• Appointment with Alida at 11am
+
+📆 Tomorrow (1 task):
+• NB - call
+
+🚨 Urgent: Fix production bug
+```
+
+### Draft Queue System
+
+Just type and press Enter - your input is queued instantly and AI processes it in the background:
+
+1. **Type your rambling text** in the input field (no need to wait)
+2. **Press Enter** - Draft appears immediately in "Drafts" section
+3. **Keep typing** - Add more drafts while AI processes the first one
+4. **AI extracts in FIFO order** - Todos pop out one by one with animations
+5. **Instant feedback** - Purple spinner shows processing status
+
+**Example workflow:**
+
+```
+[You type]: "urgent client meeting prep tomorrow"
+[Press Enter] → Draft queued instantly
+[You type]: "also buy groceries and call dentist"
+[Press Enter] → Second draft queued
+[AI processes first] → Todos appear with tags/dates
+[AI processes second] → More todos appear
+```
+
 ### AI Todo Extraction
 
 The app can intelligently extract todos from natural language rambling:
@@ -156,7 +267,9 @@ simple-todo-vercel/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── ai/
-│   │   │   │   └── extract/    # 🤖 AI todo extraction
+│   │   │   │   ├── extract/    # 🤖 AI todo extraction
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── query/      # 🔍 AI query detection
 │   │   │   │       └── route.ts
 │   │   │   ├── setup/          # Database initialization
 │   │   │   ├── test-db/        # Database connection test
@@ -169,7 +282,7 @@ simple-todo-vercel/
 │   │   ├── layout.tsx          # Root layout
 │   │   └── page.tsx            # Home page
 │   ├── components/
-│   │   └── TodoApp.tsx         # Main todo component
+│   │   └── TodoApp.tsx         # Main todo component (search, filters, query, summary)
 │   └── lib/
 │       └── db.ts               # Database schema & config (AI fields)
 ├── drizzle/                    # Database migrations
@@ -186,9 +299,31 @@ simple-todo-vercel/
 ### 🤖 AI Endpoints
 
 - `POST /api/ai/extract` - Extract todos from natural language text
+
   ```json
   {
     "text": "I'm so stressed about the client meeting next week, need to prep the slides, also gotta call mom back, oh and fix that bug in production..."
+  }
+  ```
+
+- `POST /api/ai/query` - Detect if input is a question and filter relevant todos
+  ```json
+  {
+    "text": "what's urgent?",
+    "todos": [
+      { "id": 1, "text": "Fix production bug", "tags": ["work", "urgent"], "priority": "high", "completed": false },
+      { "id": 2, "text": "Call mom", "tags": ["personal"], "priority": "medium", "completed": false }
+    ]
+  }
+  ```
+  **Response:**
+  ```json
+  {
+    "isQuery": true,
+    "intent": "find urgent tasks",
+    "keywords": ["urgent", "high priority"],
+    "response": "Here are your urgent tasks: Fix production bug.",
+    "matchingTodoIds": [1]
   }
   ```
   **Response:**

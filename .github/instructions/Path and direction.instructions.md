@@ -82,11 +82,104 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
 ## Phase 1 Priorities (MVP)
 
 1. ✅ Basic todo CRUD (DONE)
-2. 🎯 Add AI extraction endpoint (`POST /api/ai/extract`)
-3. 🎯 Update todo schema with new fields
-4. 🎯 Build magical input experience with animations
-5. 🎯 Implement query detection and filtering
-6. 🎯 Add AI provider configuration UI
+2. ✅ Add AI extraction endpoint (`POST /api/ai/extract`) (DONE)
+3. ✅ Update todo schema with new fields (DONE)
+4. ✅ Build magical input experience with animations (DONE - Draft Queue + Staggered Animations)
+5. ✅ Implement query detection and filtering (DONE - Smart query detection with AI responses)
+6. ✅ Advanced search & quick filters (DONE - Live search + Priority/Tags/Status/Date filters)
+7. ✅ Conversational summary panel (DONE - "What's Ahead" narrative with markdown parsing)
+8. 🎯 Add AI provider configuration UI
+
+## Phase 2 Priorities (Polish & Power Features)
+
+1. **Production Polish**:
+
+   - Toast notifications for actions (delete, save, error)
+   - Loading skeletons for todos while fetching
+   - Mobile UX improvements (single-column layout, touch gestures)
+   - Empty state illustrations and onboarding
+   - Accessibility (keyboard navigation, ARIA labels, screen reader support)
+
+2. **Advanced AI Features**:
+
+   - Smart scheduling suggestions ("This might be easier tomorrow morning")
+   - Recurring todos detection ("every week" → auto-create recurring pattern)
+   - Context-aware suggestions ("You have 3 work tasks due today, want to prioritize?")
+   - Natural language todo editing ("move dentist to Friday")
+
+3. **AI Provider UI**:
+
+   - Settings/preferences page
+   - Select preferred AI provider (Anthropic/OpenAI)
+   - API key status indicators (valid/invalid/missing)
+   - Cost tracking (tokens used, estimated monthly cost)
+   - Rate limiting configuration
+
+4. **Performance & Scale**:
+   - Pagination for large todo lists (100+ items)
+   - Virtual scrolling for smooth performance
+   - Optimistic updates for all mutations
+   - Local storage backup (offline-first mode)
+
+## Lessons Learned
+
+### AI Query Detection
+
+- **ID Matching Bug**: AI models confuse array indexes with database IDs when shown numbered lists. Always show `ID ${t.id}:` format in prompts.
+- **Timer Management**: React state timers need cleanup. Store timer reference, clear before setting new, cleanup on unmount.
+- **Filter Priority**: Apply AI query filter FIRST in cascade, before manual filters. Query is the "initial context" for further refinement.
+
+### Search & Filters
+
+- **Combined AND Logic**: All filters work together. User expects "High priority + Work tag + Overdue" to narrow down, not broaden.
+- **Live Search**: No debounce needed for small lists (<1000 items). Instant feedback is better UX.
+- **Visual Feedback**: Highlight what matches (yellow for search, blue ring for query), fade what doesn't. Clear > subtle.
+
+### Conversational Summary
+
+- **Narrative > Stats**: Users want "You have dentist today at 2pm" not "1 personal task, medium priority, due today".
+- **Show Names, Not Counts**: First 2-3 actual todo names per section, then "...". Gives immediate context without clutter.
+- **Friendly Empty States**: "Nothing scheduled!" feels better than "0 todos".
+
+### React State Patterns
+
+- **Cascade Dependencies**: `useEffect([drafts.length, isProcessing])` triggers correctly, `[drafts]` causes re-render loops.
+- **Set for IDs**: Use `Set<number>` for filtered IDs - O(1) lookup vs array search.
+- **Cleanup Everything**: Timers, listeners, subscriptions - assume unmount happens anytime.
+
+## 📝 Documentation Requirements (CRITICAL)
+
+**Auto-Update Rule**: Whenever you complete a feature or make significant changes:
+
+1. **Update README.md**:
+
+   - Add/update feature descriptions in the "Features" section
+   - Update usage examples if UX changed
+   - Add new API endpoints to the API section
+   - Update tech stack if new dependencies added
+
+2. **Update .github/copilot-instructions.md**:
+
+   - Add new patterns (state management, API patterns, etc.)
+   - Document critical implementation details
+   - Update TypeScript interfaces if schema changed
+   - Add gotchas and debugging tips
+
+3. **Update Path and direction.instructions.md**:
+   - Mark features as ✅ DONE or 🎯 IN PROGRESS
+   - Add lessons learned or design decisions
+   - Update priorities if project direction shifts
+
+**Documentation triggers** (always update docs after):
+
+- Completing a todo list item
+- Adding new API endpoints
+- Changing database schema
+- Implementing new UX patterns
+- Fixing critical bugs (add to gotchas)
+- Adding new dependencies
+
+**Goal**: Keep docs as a single source of truth - anyone (including future you or AI assistants) should understand the app just from reading the docs.
 
 ---
 

@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, todos } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 
-// PUT /api/todos/[id] - Update a todo
+// PUT /api/todos/[id] - Update a todo (only if owned by current user)
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: idParam } = await params;
     const id = parseInt(idParam);
     if (isNaN(id)) {
@@ -29,7 +35,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       updateData.completed = completed;
     }
 
-    const updatedTodos = await db.update(todos).set(updateData).where(eq(todos.id, id)).returning();
+    const updatedTodos = await db
+      .update(todos)
+      .set(updateData)
+      .where(and(eq(todos.id, id), eq(todos.userId, userId)))
+      .returning();
 
     if (updatedTodos.length === 0) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });
@@ -42,16 +52,24 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-// DELETE /api/todos/[id] - Delete a todo
+// DELETE /api/todos/[id] - Delete a todo (only if owned by current user)
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { id: idParam } = await params;
     const id = parseInt(idParam);
     if (isNaN(id)) {
       return NextResponse.json({ error: "Invalid todo ID" }, { status: 400 });
     }
 
-    const deletedTodos = await db.delete(todos).where(eq(todos.id, id)).returning();
+    const deletedTodos = await db
+      .delete(todos)
+      .where(and(eq(todos.id, id), eq(todos.userId, userId)))
+      .returning();
 
     if (deletedTodos.length === 0) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });

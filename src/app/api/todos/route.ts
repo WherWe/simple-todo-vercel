@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, todos } from "@/lib/db";
 import { desc, eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 
-// GET /api/todos - Get all todos
+// GET /api/todos - Get all todos for the current user
 export async function GET() {
   try {
-    const allTodos = await db.select().from(todos).orderBy(desc(todos.createdAt));
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const allTodos = await db.select().from(todos).where(eq(todos.userId, userId)).orderBy(desc(todos.createdAt));
+
     return NextResponse.json(allTodos);
   } catch (error) {
     console.error("Error fetching todos:", error);
@@ -25,9 +32,14 @@ export async function GET() {
   }
 }
 
-// POST /api/todos - Create a new todo
+// POST /api/todos - Create a new todo for the current user
 export async function POST(request: NextRequest) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { text, tags, priority, dueDate, context, aiGenerated } = body;
 
@@ -38,6 +50,7 @@ export async function POST(request: NextRequest) {
     const newTodo = await db
       .insert(todos)
       .values({
+        userId,
         text: text.trim(),
         completed: false,
         tags: tags || [],

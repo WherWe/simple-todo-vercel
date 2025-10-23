@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { auth } from "@clerk/nextjs/server";
 
 // Interface for extracted todo items
 interface ExtractedTodo {
@@ -139,6 +140,11 @@ async function extractTodos(text: string): Promise<ExtractedTodo[]> {
 // POST endpoint
 export async function POST(request: NextRequest) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { text } = body;
 

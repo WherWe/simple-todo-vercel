@@ -5,6 +5,7 @@ import { pgTable, serial, text, boolean, timestamp, jsonb } from "drizzle-orm/pg
 // Define the todos table schema
 export const todos = pgTable("todos", {
   id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(), // Clerk user ID
   text: text("text").notNull(),
   completed: boolean("completed").default(false).notNull(),
 

@@ -66,10 +66,27 @@ textarea {
   }
 }
 
+@keyframes slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+    max-height: 0;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
+}
+
 .todo-appear {
   animation: slideInFromTop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .ai-glow {
   animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
