@@ -6,6 +6,14 @@ interface Todo {
   id: number;
   text: string;
   completed: boolean;
+
+  // AI-enhanced fields
+  tags: string[];
+  priority: "high" | "medium" | "low";
+  dueDate: string | null;
+  context: string | null;
+  aiGenerated: boolean;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -18,6 +26,10 @@ export default function TodoApp() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
+
+  // AI extraction state
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedTodos, setExtractedTodos] = useState<any[]>([]);
 
   // Load todos from API on component mount
   useEffect(() => {
@@ -76,6 +88,69 @@ export default function TodoApp() {
       console.error("Error setting up database:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const extractTodosWithAI = async () => {
+    if (inputText.trim() === "") return;
+
+    try {
+      setIsExtracting(true);
+      setError(null);
+
+      const response = await fetch("/api/ai/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: inputText.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to extract todos");
+      }
+
+      const result = await response.json();
+      console.log("AI extracted todos:", result);
+
+      // Save each extracted todo to the database
+      const savedTodos: Todo[] = [];
+      for (const extractedTodo of result.todos) {
+        const todoResponse = await fetch("/api/todos", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: extractedTodo.text,
+            tags: extractedTodo.tags,
+            priority: extractedTodo.priority,
+            dueDate: extractedTodo.dueDate,
+            context: extractedTodo.context,
+            aiGenerated: true,
+          }),
+        });
+
+        if (todoResponse.ok) {
+          const savedTodo = await todoResponse.json();
+          savedTodos.push(savedTodo);
+        }
+      }
+
+      // Add todos with staggered animation
+      setExtractedTodos(savedTodos);
+      for (let i = 0; i < savedTodos.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * i));
+        setTodos((prev) => [savedTodos[i], ...prev]);
+      }
+
+      setInputText("");
+      setExtractedTodos([]);
+    } catch (err) {
+      setError("Failed to extract todos with AI");
+      console.error("Error extracting todos:", err);
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -237,23 +312,45 @@ export default function TodoApp() {
       )}
 
       {/* Input Section */}
-      <div className="flex mb-6">
-        <input
-          type="text"
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Add a new todo..."
-          disabled={loading}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base"
-        />
-        <button
-          onClick={addTodo}
-          disabled={loading || !inputText.trim()}
-          className="px-6 py-2 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? "Adding..." : "Add"}
-        </button>
+      <div className={`mb-6 transition-all duration-300 ${isExtracting ? "ring-4 ring-purple-300 ring-opacity-50" : ""}`}>
+        <div className="flex">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={isExtracting ? "✨ AI is thinking..." : "Add a todo or ramble away..."}
+            disabled={loading || isExtracting}
+            className={`flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base ${
+              isExtracting ? "animate-pulse" : ""
+            }`}
+          />
+          <button
+            onClick={addTodo}
+            disabled={loading || isExtracting || !inputText.trim()}
+            className="px-6 py-2 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Adding..." : "Add"}
+          </button>
+          <button
+            onClick={extractTodosWithAI}
+            disabled={loading || isExtracting || !inputText.trim()}
+            className="px-6 py-2 bg-purple-500 text-white rounded-r-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isExtracting ? (
+              <>
+                <span className="animate-spin">✨</span>
+                <span>AI Extracting...</span>
+              </>
+            ) : (
+              <>
+                <span>✨</span>
+                <span>AI Extract</span>
+              </>
+            )}
+          </button>
+        </div>
+        {isExtracting && <div className="mt-2 text-sm text-purple-600 animate-pulse">🤖 AI is analyzing your text and extracting todos...</div>}
       </div>
 
       {/* Loading State */}
@@ -272,45 +369,80 @@ export default function TodoApp() {
           <p className="text-gray-500 text-center py-8">No todos yet. Add one above!</p>
         ) : (
           todos.map((todo) => (
-            <div key={todo.id} className={`flex items-center p-3 border rounded-lg transition-all ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"}`}>
-              <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+            <div
+              key={todo.id}
+              className={`border rounded-lg transition-all ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"} ${todo.aiGenerated ? "border-l-4 border-l-purple-400" : ""}`}
+            >
+              <div className="flex items-center p-3">
+                <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
 
-              {editingId === todo.id ? (
-                <input
-                  type="text"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
-                  onBlur={() => saveEdit(todo.id)}
-                  autoFocus
-                  className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
-                />
-              ) : (
-                <span className={`flex-1 cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`} onClick={() => startEdit(todo.id, todo.text)} title="Click to edit">
-                  {todo.text}
-                </span>
-              )}
-
-              <div className="flex gap-1 ml-3">
                 {editingId === todo.id ? (
-                  <>
-                    <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
-                      ✓
-                    </button>
-                    <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
-                      ✕
-                    </button>
-                  </>
+                  <input
+                    type="text"
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
+                    onBlur={() => saveEdit(todo.id)}
+                    autoFocus
+                    className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
+                  />
                 ) : (
-                  <>
-                    <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
-                      ✏️
-                    </button>
-                    <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
-                      ✕
-                    </button>
-                  </>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`} onClick={() => startEdit(todo.id, todo.text)} title="Click to edit">
+                        {todo.text}
+                      </span>
+                      {todo.aiGenerated && (
+                        <span className="text-xs text-purple-500" title="AI Generated">
+                          ✨
+                        </span>
+                      )}
+                      {todo.priority === "high" && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full">High</span>}
+                      {todo.priority === "low" && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full">Low</span>}
+                    </div>
+                    {(todo.tags.length > 0 || todo.dueDate || todo.context) && (
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                        {todo.tags.map((tag) => (
+                          <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                            #{tag}
+                          </span>
+                        ))}
+                        {todo.dueDate && (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full" title="Due date">
+                            📅 {new Date(todo.dueDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {todo.context && (
+                      <div className="mt-1 text-xs text-gray-500 italic" title="Original context">
+                        "{todo.context}"
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                <div className="flex gap-1 ml-3">
+                  {editingId === todo.id ? (
+                    <>
+                      <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
+                        ✓
+                      </button>
+                      <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
+                        ✏️
+                      </button>
+                      <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
+                        ✕
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))

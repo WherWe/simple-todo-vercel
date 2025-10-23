@@ -28,7 +28,8 @@ export async function GET() {
 // POST /api/todos - Create a new todo
 export async function POST(request: NextRequest) {
   try {
-    const { text } = await request.json();
+    const body = await request.json();
+    const { text, tags, priority, dueDate, context, aiGenerated } = body;
 
     if (!text || typeof text !== "string" || text.trim() === "") {
       return NextResponse.json({ error: "Text is required and must be a non-empty string" }, { status: 400 });
@@ -39,6 +40,11 @@ export async function POST(request: NextRequest) {
       .values({
         text: text.trim(),
         completed: false,
+        tags: tags || [],
+        priority: priority || "medium",
+        dueDate: dueDate ? new Date(dueDate) : null,
+        context: context || null,
+        aiGenerated: aiGenerated || false,
       })
       .returning();
 

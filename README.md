@@ -4,6 +4,8 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 
 ## ✨ Features
 
+### Core Todo Management
+
 - ✅ Add, edit, and delete todos
 - ✅ Mark todos as complete/incomplete
 - ✅ Inline editing (click to edit)
@@ -14,6 +16,14 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 - ✅ Real-time sync across devices
 - ✅ Loading states and error handling
 
+### 🤖 AI-Powered Features (NEW!)
+
+- 🎯 **Natural Language Todo Extraction**: Ramble, rant, or brain dump - AI extracts actionable todos
+- 🏷️ **Smart Auto-Tagging**: Automatically categorizes todos (work, personal, urgent, health, etc.)
+- 📊 **Priority Assignment**: AI determines task priority (high, medium, low)
+- 📅 **Date Inference**: Extracts due dates from phrases like "tomorrow", "next week", "Friday"
+- 🔄 **Dual AI Providers**: Uses Claude (Anthropic) with OpenAI GPT fallback
+
 ## 🚀 Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
@@ -21,6 +31,7 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 - **Styling**: Tailwind CSS 4
 - **Database**: Vercel Postgres (Neon)
 - **ORM**: Drizzle ORM
+- **AI**: Anthropic Claude 3.5 Sonnet + OpenAI GPT-4o
 - **Deployment**: Vercel
 - **Version Control**: Git + GitHub
 
@@ -54,22 +65,23 @@ Create a `.env.local` file in the root directory (this file is **git-ignored** a
 # Database (automatically set by Vercel in production)
 POSTGRES_URL="your_postgres_connection_string"
 
-# AI Provider API Keys
-ANTHROPIC_API_KEY="your_anthropic_api_key"
-OPENAI_API_KEY="your_openai_api_key"
-
-# AI Configuration
-DEFAULT_AI_PROVIDER="anthropic"
-DEFAULT_AI_MODEL="claude-sonnet-4-5-20250929"
-FALLBACK_AI_MODEL="gpt-4o"
+# AI Provider API Keys (at least ONE is required for AI features)
+ANTHROPIC_API_KEY="sk-ant-api03-..."  # Get from https://console.anthropic.com/
+OPENAI_API_KEY="sk-..."                # Get from https://platform.openai.com/api-keys
 ```
 
-**📋 Use the template**: Copy `.env.example` to `.env.local` and fill in your actual keys:
+**📋 Use the template**: Copy `.env.local.example` to `.env.local` and fill in your actual keys:
 
 ```bash
-cp .env.example .env.local
+cp .env.local.example .env.local
 # Then edit .env.local with your real API keys
 ```
+
+**🔑 Getting API Keys:**
+
+- **Anthropic Claude**: Sign up at [console.anthropic.com](https://console.anthropic.com/) (recommended, tried first)
+- **OpenAI GPT**: Sign up at [platform.openai.com](https://platform.openai.com/) (fallback option)
+- You need at least ONE key configured for AI features to work
 
 ### 4. Initialize Database
 
@@ -89,6 +101,53 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## 🤖 Using AI Features
+
+### AI Todo Extraction
+
+The app can intelligently extract todos from natural language rambling:
+
+**Example input:**
+
+```
+I'm so stressed about the client meeting next week, need to prep the slides,
+also gotta call mom back, oh and fix that bug in production ASAP,
+and maybe grab groceries on Friday
+```
+
+**Click "✨ AI Extract"** and watch the magic:
+
+- ✨ Input glows with purple ring
+- 🤖 "AI is thinking..." indicator appears
+- 📝 Todos pop out one by one with staggered animation
+- 🏷️ Automatically tagged (work, personal, urgent, etc.)
+- 📊 Priority assigned (high, medium, low)
+- 📅 Due dates inferred from temporal references
+- 💬 Original context preserved
+
+**Result:**
+
+1. ✅ "Prepare slides for client meeting" - #work #urgent - High - Due: Oct 28
+2. ✅ "Call mom back" - #personal - Medium
+3. ✅ "Fix bug in production ASAP" - #work #urgent - High
+4. ✅ "Grab groceries" - #personal - Medium - Due: Oct 25
+
+### Todo Display Features
+
+AI-extracted todos show:
+
+- **Purple left border** - Indicates AI-generated item
+- **✨ Sparkle icon** - Visual indicator of AI extraction
+- **Tag badges** - Color-coded categories (#work, #personal, etc.)
+- **Priority badges** - Red for high, gray for low
+- **Due dates** - Calendar icon with formatted date
+- **Context quote** - Original text snippet in italics
+
+### Manual vs AI
+
+- **"Add" button** - Simple, single todo creation (traditional)
+- **"✨ AI Extract" button** - Intelligent extraction from rambling text
+
 ## 🗂️ Project Structure
 
 ```
@@ -96,6 +155,9 @@ simple-todo-vercel/
 ├── src/
 │   ├── app/
 │   │   ├── api/
+│   │   │   ├── ai/
+│   │   │   │   └── extract/    # 🤖 AI todo extraction
+│   │   │   │       └── route.ts
 │   │   │   ├── setup/          # Database initialization
 │   │   │   ├── test-db/        # Database connection test
 │   │   │   └── todos/          # CRUD API endpoints
@@ -109,16 +171,56 @@ simple-todo-vercel/
 │   ├── components/
 │   │   └── TodoApp.tsx         # Main todo component
 │   └── lib/
-│       └── db.ts               # Database schema & config
+│       └── db.ts               # Database schema & config (AI fields)
 ├── drizzle/                    # Database migrations
 ├── scripts/
 │   └── setup-db.ts            # DB setup script
+├── .env.local.example         # Environment variable template
 ├── drizzle.config.ts          # Drizzle ORM config
 ├── package.json
 └── README.md
 ```
 
 ## 🔌 API Endpoints
+
+### 🤖 AI Endpoints
+
+- `POST /api/ai/extract` - Extract todos from natural language text
+  ```json
+  {
+    "text": "I'm so stressed about the client meeting next week, need to prep the slides, also gotta call mom back, oh and fix that bug in production..."
+  }
+  ```
+  **Response:**
+  ```json
+  {
+    "success": true,
+    "count": 3,
+    "todos": [
+      {
+        "text": "Prepare slides for client meeting",
+        "tags": ["work", "urgent"],
+        "priority": "high",
+        "dueDate": "2025-10-28",
+        "context": "client meeting next week, need to prep the slides"
+      },
+      {
+        "text": "Call mom back",
+        "tags": ["personal"],
+        "priority": "medium",
+        "dueDate": null,
+        "context": "gotta call mom back"
+      },
+      {
+        "text": "Fix bug in production",
+        "tags": ["work", "urgent"],
+        "priority": "high",
+        "dueDate": null,
+        "context": "fix that bug in production"
+      }
+    ]
+  }
+  ```
 
 ### Todos
 
@@ -189,9 +291,19 @@ vercel --prod
 
 ```typescript
 todos {
+  // Core fields
   id: serial (primary key)
   text: text (required)
   completed: boolean (default: false)
+
+  // AI-enhanced fields
+  tags: jsonb (array of strings, default: [])
+  priority: text ("high" | "medium" | "low", default: "medium")
+  dueDate: timestamp (nullable)
+  context: text (original snippet from ramble, nullable)
+  aiGenerated: boolean (default: false)
+
+  // Timestamps
   createdAt: timestamp (auto)
   updatedAt: timestamp (auto)
 }
