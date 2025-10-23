@@ -16,7 +16,17 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 - ✅ Real-time sync across devices
 - ✅ Loading states and error handling
 
-### 🤖 AI-Powered Features (NEW!)
+### 🔐 Multi-User Authentication (NEW!)
+
+- 👤 **Secure Sign-In/Sign-Up**: Powered by Clerk authentication
+- 🔒 **User Isolation**: Each user has their own private todo list
+- 👥 **Multi-User Support**: Perfect for families, teams, or sharing with others
+- 🎨 **Beautiful Auth UI**: Pre-built sign-in pages that match your app design
+- ⚡ **Instant Protection**: All routes and API endpoints secured automatically
+- 🚀 **Session Management**: Stay signed in across devices
+- 🔐 **Password Security**: Industry-standard authentication with Clerk
+
+### 🤖 AI-Powered Features
 
 - 🎯 **Natural Language Todo Extraction**: Ramble, rant, or brain dump - AI extracts actionable todos
 - 🏷️ **Smart Auto-Tagging**: Automatically categorizes todos (work, personal, urgent, health, etc.)
@@ -41,6 +51,7 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 - **Styling**: Tailwind CSS 4
 - **Database**: Vercel Postgres (Neon)
 - **ORM**: Drizzle ORM
+- **Authentication**: Clerk (Multi-user auth with session management)
 - **AI**: Anthropic Claude 3.5 Sonnet + OpenAI GPT-4o
 - **Deployment**: Vercel
 - **Version Control**: Git + GitHub
@@ -72,6 +83,10 @@ npm install
 Create a `.env.local` file in the root directory (this file is **git-ignored** and will never be committed):
 
 ```env
+# Clerk Authentication (Get from https://dashboard.clerk.com)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+
 # Database (automatically set by Vercel in production)
 POSTGRES_URL="your_postgres_connection_string"
 
@@ -89,9 +104,13 @@ cp .env.local.example .env.local
 
 **🔑 Getting API Keys:**
 
+- **Clerk Authentication**: Sign up at [dashboard.clerk.com](https://dashboard.clerk.com/) (required for multi-user features)
+  - Create a new application
+  - Copy the publishable key (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`)
+  - Copy the secret key (`CLERK_SECRET_KEY`)
 - **Anthropic Claude**: Sign up at [console.anthropic.com](https://console.anthropic.com/) (recommended, tried first)
 - **OpenAI GPT**: Sign up at [platform.openai.com](https://platform.openai.com/) (fallback option)
-- You need at least ONE key configured for AI features to work
+- You need at least ONE AI key configured for AI features to work
 
 ### 4. Initialize Database
 

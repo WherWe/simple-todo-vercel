@@ -19,9 +19,20 @@ Full-stack Next.js 16 todo app with PostgreSQL persistence via Vercel Postgres +
 - **Async params**: In `/api/todos/[id]/route.ts`, params are now `Promise<{ id: string }>` - must `await params` before use
 - **Error responses**: Always return `NextResponse.json()` with appropriate status codes (503 for DB not initialized, 500 for errors)
 
-### 2. Database Schema (Drizzle ORM)
+### 2. Clerk Authentication (CRITICAL)
+
+- **Multi-user isolation**: All todos are filtered by `userId` from Clerk's `auth()` helper
+- **Middleware protection**: `src/middleware.ts` uses `clerkMiddleware` with `auth.protect()` to secure all routes except `/sign-in` and `/sign-up`
+- **API authentication**: All `/api/todos/*` endpoints check `await auth()` and return 401 if no userId
+- **User filtering**: Database queries use `.where(eq(todos.userId, userId))` to isolate user data
+- **Sign-in pages**: Pre-built Clerk components at `/sign-in/[[...sign-in]]` and `/sign-up/[[...sign-up]]`
+- **User profile**: `UserButton` component in header shows avatar, sign-out option
+- **Environment keys**: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (public) and `CLERK_SECRET_KEY` (server-side only)
+
+### 3. Database Schema (Drizzle ORM)
 
 - Schema in `src/lib/db.ts` uses Drizzle's `pgTable` - NOT Prisma or raw SQL strings
+- **User isolation field**: `userId: text("user_id").notNull()` - required on all todos
 - Types auto-inferred: `Todo` from `todos.$inferSelect`, `NewTodo` from `todos.$inferInsert`
 - Connection via `drizzle(sql)` where `sql` is `@vercel/postgres` client
 
