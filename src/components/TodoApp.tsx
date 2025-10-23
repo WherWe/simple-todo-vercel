@@ -3,6 +3,36 @@
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
 
+// Tagline collection
+const TAGLINES = [
+  "Procrastinate. Annotate. Dominate.",
+  "Turn your brain dump into a to-do list before the motivation evaporates.",
+  "For when your rambling deserves a productivity badge.",
+  "The only app that gets you… eventually.",
+  "Because talking to yourself is project management.",
+  "Your procrastination, now neatly itemized.",
+  "Where chaos meets checkbox.",
+  "AI that listens to your nonsense — and still makes a plan.",
+  "From rant to responsibility.",
+  "Finally, a productivity app for the chronically distracted.",
+  "Built for the modern multitasker (aka professional procrastinator).",
+  "Think less. Dump more. Get stuff done.",
+  "Optimizing human inefficiency through AI.",
+  "Like Todoist, but slightly less judgmental.",
+  "Your thoughts. Organized-ish.",
+  "Because your ideas deserve a checklist — even the weird ones.",
+  "AI that listens, sorts, and politely suggests you get on with it.",
+  "The almost-organized to-do list.",
+  "Productivity with personality.",
+  "Smart enough to understand your chaos.",
+  "Todoish: because done-ish is good enough.",
+  "Turns your stream of consciousness into a stream of checkmarks.",
+  "Get things done (or at least written down).",
+  "Smarter to-dos for messier minds.",
+  "Revolutionizing the art of almost doing stuff.",
+  "Less list. More life.",
+];
+
 interface Todo {
   id: number;
   text: string;
@@ -70,6 +100,20 @@ export default function TodoApp() {
   // Schedule generation state
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleRange, setScheduleRange] = useState<"today" | "tomorrow" | "week">("today");
+
+  // Rotating tagline state (changes every 5 seconds)
+  const [currentTagline, setCurrentTagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+
+  // Page load quote (static per session)
+  const [pageQuote] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+
+  // Rotate tagline every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTagline(TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Load todos from API on component mount
   useEffect(() => {
@@ -1103,7 +1147,9 @@ export default function TodoApp() {
               <div className="text-3xl">✨</div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">todoish</h1>
-                <p className="text-xs text-gray-500">AI-powered task management</p>
+                <p className="text-xs text-gray-500 transition-opacity duration-300" suppressHydrationWarning>
+                  {currentTagline}
+                </p>
               </div>
             </div>
 
@@ -1127,6 +1173,18 @@ export default function TodoApp() {
           </div>
         </div>
       </header>
+
+      {/* Featured Quote Banner */}
+      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 border-b border-purple-700">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-center gap-3">
+            <span className="text-2xl">💭</span>
+            <p className="text-white text-center font-medium text-lg italic" suppressHydrationWarning>
+              "{pageQuote}"
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
