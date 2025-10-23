@@ -67,6 +67,10 @@ export default function TodoApp() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "completed">("all");
   const [dateFilter, setDateFilter] = useState<Set<string>>(new Set()); // "overdue", "today", "this-week"
 
+  // Schedule generation state
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleRange, setScheduleRange] = useState<"today" | "tomorrow" | "week">("today");
+
   // Load todos from API on component mount
   useEffect(() => {
     fetchTodos();
@@ -370,6 +374,230 @@ export default function TodoApp() {
     return summary.trim();
   };
 
+  // Generate printable schedule
+  const generateSchedule = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let startDate = today;
+    let endDate = new Date(today);
+    let title = "";
+
+    if (scheduleRange === "today") {
+      title = `Today's Schedule - ${today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`;
+      endDate.setDate(endDate.getDate() + 1);
+    } else if (scheduleRange === "tomorrow") {
+      startDate.setDate(startDate.getDate() + 1);
+      endDate.setDate(endDate.getDate() + 2);
+      title = `Tomorrow's Schedule - ${startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`;
+    } else {
+      // week
+      endDate.setDate(endDate.getDate() + 7);
+      title = `Weekly Schedule - ${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} to ${new Date(endDate.getTime() - 86400000).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })}`;
+    }
+
+    // Filter todos within date range
+    const scheduledTodos = todos.filter((t) => {
+      if (!t.dueDate) return false;
+      const dueDate = new Date(t.dueDate);
+      const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+      return dueDateOnly >= startDate && dueDateOnly < endDate;
+    });
+
+    // Sort by date, then priority
+    scheduledTodos.sort((a, b) => {
+      const dateA = new Date(a.dueDate!);
+      const dateB = new Date(b.dueDate!);
+      if (dateA.getTime() !== dateB.getTime()) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+
+    return { title, todos: scheduledTodos, startDate, endDate };
+  };
+
+  const printSchedule = () => {
+    const { title, todos: scheduledTodos, startDate, endDate } = generateSchedule();
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @media print {
+              @page { margin: 0.5in; }
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              max-width: 8.5in;
+              margin: 0 auto;
+              padding: 20px;
+              color: #333;
+            }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 10px;
+              color: #6366f1;
+              border-bottom: 3px solid #6366f1;
+              padding-bottom: 10px;
+            }
+            .meta {
+              color: #666;
+              font-size: 14px;
+              margin-bottom: 30px;
+            }
+            .todo-item {
+              margin-bottom: 20px;
+              padding: 15px;
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              page-break-inside: avoid;
+            }
+            .todo-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 8px;
+            }
+            .todo-text {
+              font-size: 16px;
+              font-weight: 600;
+              flex: 1;
+            }
+            .checkbox {
+              width: 20px;
+              height: 20px;
+              border: 2px solid #999;
+              border-radius: 4px;
+              display: inline-block;
+              margin-right: 10px;
+            }
+            .priority {
+              display: inline-block;
+              padding: 4px 12px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: 600;
+              text-transform: uppercase;
+            }
+            .priority-high { background: #fee2e2; color: #991b1b; }
+            .priority-medium { background: #fef3c7; color: #92400e; }
+            .priority-low { background: #e5e7eb; color: #374151; }
+            .todo-meta {
+              font-size: 14px;
+              color: #666;
+              margin-top: 8px;
+            }
+            .tags {
+              display: inline-flex;
+              gap: 6px;
+              flex-wrap: wrap;
+              margin-top: 8px;
+            }
+            .tag {
+              background: #ede9fe;
+              color: #5b21b6;
+              padding: 2px 8px;
+              border-radius: 10px;
+              font-size: 12px;
+            }
+            .date-section {
+              margin-top: 30px;
+              margin-bottom: 15px;
+              font-size: 18px;
+              font-weight: 700;
+              color: #4f46e5;
+              border-left: 4px solid #4f46e5;
+              padding-left: 12px;
+            }
+            .empty {
+              text-align: center;
+              padding: 40px;
+              color: #999;
+              font-style: italic;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>📋 ${title}</h1>
+          <div class="meta">Generated on ${new Date().toLocaleString()}</div>
+          
+          ${
+            scheduledTodos.length === 0
+              ? '<div class="empty">No scheduled tasks for this period. Enjoy your free time! 🎉</div>'
+              : (() => {
+                  // Group by date
+                  const grouped: { [key: string]: Todo[] } = {};
+                  scheduledTodos.forEach((todo) => {
+                    const dueDate = new Date(todo.dueDate!);
+                    const dateKey = dueDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+                    if (!grouped[dateKey]) grouped[dateKey] = [];
+                    grouped[dateKey].push(todo);
+                  });
+
+                  return Object.entries(grouped)
+                    .map(
+                      ([date, todos]) => `
+                <div class="date-section">${date}</div>
+                ${todos
+                  .map(
+                    (todo) => `
+                  <div class="todo-item">
+                    <div class="todo-header">
+                      <div style="display: flex; align-items: center; flex: 1;">
+                        <span class="checkbox"></span>
+                        <span class="todo-text">${todo.text}</span>
+                      </div>
+                      <span class="priority priority-${todo.priority}">${todo.priority}</span>
+                    </div>
+                    ${
+                      todo.tags && todo.tags.length > 0
+                        ? `
+                      <div class="tags">
+                        ${todo.tags.map((tag) => `<span class="tag">#${tag}</span>`).join("")}
+                      </div>
+                    `
+                        : ""
+                    }
+                    ${
+                      todo.context
+                        ? `
+                      <div class="todo-meta">💭 ${todo.context}</div>
+                    `
+                        : ""
+                    }
+                  </div>
+                `
+                  )
+                  .join("")}
+              `
+                    )
+                    .join("");
+                })()
+          }
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Auto-print after a short delay for rendering
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
   const fetchTodos = async () => {
     try {
       setLoading(true);
@@ -570,6 +798,18 @@ export default function TodoApp() {
 
     // Clear input immediately for better UX
     setInputText("");
+
+    // Create draft IMMEDIATELY (optimistic UI)
+    const draft: Draft = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      status: "queued",
+      createdAt: new Date().toISOString(),
+    };
+    setDrafts((prev) => [draft, ...prev]);
+    console.log("Draft created instantly:", text);
+
+    // THEN check if it's actually a query (in background)
     setIsQuerying(true);
 
     try {
@@ -587,26 +827,22 @@ export default function TodoApp() {
       const queryResult: QueryResult = await queryResponse.json();
       console.log("Query detection result:", queryResult);
 
-      // Step 2: Route to query or todo creation flow
+      // Step 2: If it's a query, remove the draft and execute query instead
       if (queryResult.isQuery) {
-        // This is a question - execute query
+        // Remove the draft we optimistically created
+        setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+        console.log("Detected as query, removing draft:", draft.id);
+
+        // Execute the query
         await executeQuery(queryResult);
       } else {
-        // This is todo creation - queue for AI extraction
-        const draft: Draft = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          text,
-          status: "queued",
-          createdAt: new Date().toISOString(),
-        };
-        console.log("Draft queued:", text);
-        setDrafts((prev) => [draft, ...prev]);
+        // It's todo creation - draft is already queued, will be processed automatically
+        console.log("Confirmed as todo creation, draft will be processed");
       }
     } catch (err) {
       console.error("Input processing error:", err);
-      setError("Failed to process input");
-      // Restore input on error
-      setInputText(text);
+      // On error, keep the draft and let it process as a todo
+      console.log("Query detection failed, treating as todo");
     } finally {
       setIsQuerying(false);
     }
@@ -857,495 +1093,597 @@ export default function TodoApp() {
   const totalCount = todos.length;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-7xl mx-auto">
-      {/* Header with User Profile */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">AI Todo Assistant</h1>
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "w-10 h-10",
-            },
-          }}
-        />
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
-          {needsSetup && (
-            <div className="mt-3">
-              <button onClick={setupDatabase} disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed mr-2">
-                {loading ? "Setting up..." : "Setup Database"}
-              </button>
-            </div>
-          )}
-          <button onClick={() => setError(null)} className="ml-2 text-red-500 hover:text-red-700">
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Two Column Layout - Desktop: Chat Left | Todos Right, Mobile: Stacked */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT COLUMN - Chat Input Section */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
-          <div
-            className={`transition-all duration-500 ease-out ${
-              aiActive ? "scale-[1.02] ring-4 ring-purple-400 ring-opacity-40 shadow-2xl shadow-purple-200" : "shadow-lg hover:shadow-xl"
-            } rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6`}
-          >
-            <div className="space-y-4">
-              {/* Large Textarea Input */}
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder={isExtracting ? "✨ AI is working its magic..." : "What's on your mind? Add a single todo or ramble about everything you need to do..."}
-                disabled={loading}
-                rows={3}
-                className={`w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base resize-none transition-all duration-300 hover:border-gray-300`}
-                style={{ minHeight: "90px" }}
-              />
-
-              {/* AI Extracting Indicator */}
-              {aiActive && (
-                <div className="flex items-center gap-3 text-purple-600 animate-pulse bg-purple-50 px-4 py-3 rounded-lg">
-                  <div className="relative">
-                    <span className="text-2xl animate-bounce">🤖</span>
-                    <span className="absolute inset-0 text-2xl animate-ping opacity-30">✨</span>
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">AI is processing drafts...</p>
-                    <p className="text-xs text-purple-500">Extracting todos, assigning tags, priorities, and dates</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Button Row */}
-              <div className="flex gap-2">
-                <button
-                  onClick={addTodo}
-                  disabled={loading || !inputText.trim()}
-                  className="flex-1 px-4 py-2 bg-white border-2 border-blue-500 text-blue-600 font-medium rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 shadow-sm hover:shadow-md transform hover:scale-[1.01] active:scale-[0.99]"
-                >
-                  {loading ? "Adding..." : "Add Simple Todo"}
-                </button>
-                <button
-                  onClick={enqueueDraftFromInput}
-                  disabled={loading || !inputText.trim()}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2"
-                >
-                  {aiActive ? (
-                    <>
-                      <span className="animate-spin text-lg">✨</span>
-                      <span>Queued</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-lg">✨</span>
-                      <span>Add to Drafts</span>
-                    </>
-                  )}
-                </button>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Professional Header */}
+      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo/Brand */}
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">✨</div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">todoish</h1>
+                <p className="text-xs text-gray-500">AI-powered task management</p>
               </div>
-
-              {/* Helper Text */}
-              {!aiActive && (
-                <p className="text-sm text-gray-600 text-center leading-relaxed space-x-1">
-                  <span className="inline-flex items-center gap-1">
-                    <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">Enter</kbd>
-                    <span className="text-gray-500">add to drafts (AI)</span>
-                  </span>
-                  <span className="text-gray-400 mx-2">•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">⌘+Enter</kbd>
-                    <span className="text-gray-500">simple add</span>
-                  </span>
-                  <span className="text-gray-400 mx-2">•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">Shift+Enter</kbd>
-                    <span className="text-gray-500">new line</span>
-                  </span>
-                </p>
-              )}
             </div>
 
-            {/* Smart Summary Panel */}
-            {todos.length > 0 &&
-              !aiActive &&
-              (() => {
-                const summary = getSummary();
-                return (
-                  <div className="mt-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4 shadow-md">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xl">�</span>
-                      <h3 className="text-sm font-bold text-purple-900 uppercase tracking-wide">What's Ahead</h3>
-                    </div>
+            {/* Navigation & User Profile */}
+            <div className="flex items-center gap-6">
+              {/* Future nav items can go here */}
+              <nav className="hidden md:flex items-center gap-4">
+                <button className="text-sm text-gray-600 hover:text-purple-600 transition-colors font-medium">Guide</button>
+                <button className="text-sm text-gray-600 hover:text-purple-600 transition-colors font-medium">About</button>
+              </nav>
 
-                    <div className="text-sm text-gray-800 leading-relaxed">{parseSummaryText(summary)}</div>
-                  </div>
-                );
-              })()}
+              {/* User Profile */}
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "w-9 h-9 ring-2 ring-purple-100 hover:ring-purple-300 transition-all",
+                  },
+                }}
+              />
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* RIGHT COLUMN - Todo List Section */}
-        <div className="space-y-4">
-          {/* AI Query Response Bubble */}
-          {activeQuery && (
-            <div className="animate-slide-down bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-4 shadow-lg">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">🤖</div>
-                <div className="flex-1">
-                  <div className="text-sm font-semibold text-blue-900 mb-1">AI Response ({activeQuery.intent.replace(/_/g, " ")})</div>
-                  <div className="text-gray-800 leading-relaxed">{activeQuery.response}</div>
-                  {activeQuery.keywords.length > 0 && (
-                    <div className="mt-2 flex gap-1 flex-wrap">
-                      {activeQuery.keywords.map((kw, i) => (
-                        <span key={i} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                          {kw}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 shadow-sm">
+            {error}
+            {needsSetup && (
+              <div className="mt-3">
+                <button onClick={setupDatabase} disabled={loading} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed mr-2">
+                  {loading ? "Setting up..." : "Setup Database"}
+                </button>
+              </div>
+            )}
+            <button onClick={() => setError(null)} className="ml-2 text-red-500 hover:text-red-700">
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Two Column Layout - Desktop: Chat Left | Todos Right, Mobile: Stacked */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* LEFT COLUMN - Chat Input Section */}
+          <div className="lg:sticky lg:top-6 lg:self-start">
+            <div
+              className={`transition-all duration-500 ease-out ${
+                aiActive ? "scale-[1.02] ring-4 ring-purple-400 ring-opacity-40 shadow-2xl shadow-purple-200" : "shadow-lg hover:shadow-xl"
+              } rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6`}
+            >
+              <div className="space-y-4">
+                {/* Large Textarea Input with Send Icon */}
+                <div className="relative">
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder={isExtracting ? "✨ AI is working its magic..." : "What's on your mind? Add a single todo or ramble about everything you need to do..."}
+                    disabled={loading}
+                    rows={3}
+                    className={`w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base resize-none transition-all duration-300 hover:border-gray-300`}
+                    style={{ minHeight: "90px" }}
+                  />
+
+                  {/* Send Icon Button */}
                   <button
-                    onClick={() => {
-                      if (queryClearTimer) {
-                        clearTimeout(queryClearTimer);
-                        setQueryClearTimer(null);
-                      }
-                      setActiveQuery(null);
-                      setFilteredTodoIds(new Set());
-                    }}
-                    className="mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    onClick={enqueueDraftFromInput}
+                    disabled={loading || !inputText.trim()}
+                    className="absolute bottom-3 right-3 p-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                    title="Send (or press Enter)"
                   >
-                    Clear filter
+                    {aiActive ? (
+                      <span className="animate-spin text-lg">✨</span>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                        <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Search and Filter Bar */}
-          <div className="bg-white border border-gray-300 rounded-lg p-4 space-y-3 shadow-sm">
-            {/* Search Input */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search todos... (press / to focus)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-                <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
-                {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
-                    ✕
+                {/* AI Extracting Indicator */}
+                {aiActive && (
+                  <div className="flex items-center gap-3 text-purple-600 animate-pulse bg-purple-50 px-4 py-3 rounded-lg">
+                    <div className="relative">
+                      <span className="text-2xl animate-bounce">🤖</span>
+                      <span className="absolute inset-0 text-2xl animate-ping opacity-30">✨</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">AI is processing drafts...</p>
+                      <p className="text-xs text-purple-500">Extracting todos, assigning tags, priorities, and dates</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Helper Text */}
+                {!aiActive && (
+                  <p className="text-sm text-gray-600 text-center leading-relaxed space-x-1">
+                    <span className="inline-flex items-center gap-1">
+                      <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">Enter</kbd>
+                      <span className="text-gray-500">add to drafts (AI)</span>
+                    </span>
+                    <span className="text-gray-400 mx-2">•</span>
+                    <span className="inline-flex items-center gap-1">
+                      <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">⌘+Enter</kbd>
+                      <span className="text-gray-500">simple add</span>
+                    </span>
+                    <span className="text-gray-400 mx-2">•</span>
+                    <span className="inline-flex items-center gap-1">
+                      <kbd className="px-2 py-1 bg-gray-100 rounded border border-gray-300 text-xs font-mono shadow-sm">Shift+Enter</kbd>
+                      <span className="text-gray-500">new line</span>
+                    </span>
+                  </p>
+                )}
+              </div>
+
+              {/* Smart Summary Panel */}
+              {todos.length > 0 &&
+                !aiActive &&
+                (() => {
+                  const summary = getSummary();
+                  return (
+                    <div className="mt-6 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4 shadow-md">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xl">�</span>
+                        <h3 className="text-sm font-bold text-purple-900 uppercase tracking-wide">What's Ahead</h3>
+                      </div>
+
+                      <div className="text-sm text-gray-800 leading-relaxed">{parseSummaryText(summary)}</div>
+                    </div>
+                  );
+                })()}
+
+              {/* Generate Schedule Panel */}
+              {todos.length > 0 && !aiActive && (
+                <div className="mt-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 shadow-md">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">📋</span>
+                    <h3 className="text-sm font-bold text-green-900 uppercase tracking-wide">Generate Schedule</h3>
+                  </div>
+
+                  <p className="text-sm text-gray-700 mb-3">Create a printable schedule for your todos</p>
+
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setScheduleRange("today")}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                        scheduleRange === "today" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => setScheduleRange("tomorrow")}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                        scheduleRange === "tomorrow" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      Tomorrow
+                    </button>
+                    <button
+                      onClick={() => setScheduleRange("week")}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
+                        scheduleRange === "week" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      }`}
+                    >
+                      Week
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={printSchedule}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path
+                        fillRule="evenodd"
+                        d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 003 3h.27l-.155 1.705A1.875 1.875 0 007.232 22.5h9.536a1.875 1.875 0 001.867-2.045l-.155-1.705h.27a3 3 0 003-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0018 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM16.5 6.205v-2.83A.375.375 0 0016.125 3h-8.25a.375.375 0 00-.375.375v2.83a49.353 49.353 0 019 0zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 01-.374.409H7.232a.375.375 0 01-.374-.409l.526-5.784a.373.373 0 01.333-.337 41.741 41.741 0 018.566 0zm.967-3.97a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75H18a.75.75 0 01-.75-.75V10.5zM15 9.75a.75.75 0 00-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V10.5a.75.75 0 00-.75-.75H15z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Print Schedule</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN - Todo List Section */}
+          <div className="space-y-4">
+            {/* AI Query Response Bubble */}
+            {activeQuery && (
+              <div className="animate-slide-down bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-4 shadow-lg">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">🤖</div>
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold text-blue-900 mb-1">AI Response ({activeQuery.intent.replace(/_/g, " ")})</div>
+                    <div className="text-gray-800 leading-relaxed">{activeQuery.response}</div>
+                    {activeQuery.keywords.length > 0 && (
+                      <div className="mt-2 flex gap-1 flex-wrap">
+                        {activeQuery.keywords.map((kw, i) => (
+                          <span key={i} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (queryClearTimer) {
+                          clearTimeout(queryClearTimer);
+                          setQueryClearTimer(null);
+                        }
+                        setActiveQuery(null);
+                        setFilteredTodoIds(new Set());
+                      }}
+                      className="mt-3 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      Clear filter
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Search and Filter Bar */}
+            <div className="bg-white border border-gray-300 rounded-lg p-4 space-y-3 shadow-sm">
+              {/* Search Input */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search todos... (press / to focus)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-9 py-2 border border-gray-300 rounded-lg text-black bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {hasActiveFilters() && (
+                  <button onClick={clearAllFilters} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-300 rounded-lg transition-colors whitespace-nowrap">
+                    Clear All
                   </button>
                 )}
               </div>
-              {hasActiveFilters() && (
-                <button onClick={clearAllFilters} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-300 rounded-lg transition-colors whitespace-nowrap">
-                  Clear All
-                </button>
-              )}
-            </div>
 
-            {/* Quick Filter Chips */}
-            <div className="space-y-2">
-              {/* Priority Filters */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-semibold text-gray-600 uppercase">Priority:</span>
-                {["high", "medium", "low"].map((priority) => (
-                  <button
-                    key={priority}
-                    onClick={() => {
-                      const newSet = new Set(priorityFilter);
-                      if (newSet.has(priority)) {
-                        newSet.delete(priority);
-                      } else {
-                        newSet.add(priority);
-                      }
-                      setPriorityFilter(newSet);
-                    }}
-                    className={`px-2 py-1 text-xs rounded-full transition-all ${
-                      priorityFilter.has(priority)
-                        ? priority === "high"
-                          ? "bg-red-500 text-white"
-                          : priority === "medium"
-                          ? "bg-yellow-500 text-white"
-                          : "bg-gray-500 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tag Filters */}
-              {getAllTags().length > 0 && (
+              {/* Quick Filter Chips */}
+              <div className="space-y-2">
+                {/* Priority Filters */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-semibold text-gray-600 uppercase">Tags:</span>
-                  {getAllTags().map((tag) => (
+                  <span className="text-xs font-semibold text-gray-600 uppercase">Priority:</span>
+                  {["high", "medium", "low"].map((priority) => (
                     <button
-                      key={tag}
+                      key={priority}
                       onClick={() => {
-                        const newSet = new Set(tagFilter);
-                        if (newSet.has(tag)) {
-                          newSet.delete(tag);
+                        const newSet = new Set(priorityFilter);
+                        if (newSet.has(priority)) {
+                          newSet.delete(priority);
                         } else {
-                          newSet.add(tag);
+                          newSet.add(priority);
                         }
-                        setTagFilter(newSet);
+                        setPriorityFilter(newSet);
                       }}
-                      className={`px-2 py-1 text-xs rounded-full transition-all ${tagFilter.has(tag) ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      className={`px-2 py-1 text-xs rounded-full transition-all ${
+                        priorityFilter.has(priority)
+                          ? priority === "high"
+                            ? "bg-red-500 text-white"
+                            : priority === "medium"
+                            ? "bg-yellow-500 text-white"
+                            : "bg-gray-500 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
                     >
-                      #{tag}
+                      {priority.charAt(0).toUpperCase() + priority.slice(1)}
                     </button>
                   ))}
+                </div>
+
+                {/* Tag Filters */}
+                {getAllTags().length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-gray-600 uppercase">Tags:</span>
+                    {getAllTags().map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          const newSet = new Set(tagFilter);
+                          if (newSet.has(tag)) {
+                            newSet.delete(tag);
+                          } else {
+                            newSet.add(tag);
+                          }
+                          setTagFilter(newSet);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-full transition-all ${tagFilter.has(tag) ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Status and Date Filters */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {/* Status */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-600 uppercase">Status:</span>
+                    {(["all", "active", "completed"] as const).map((status) => (
+                      <button
+                        key={status}
+                        onClick={() => setStatusFilter(status)}
+                        className={`px-2 py-1 text-xs rounded-full transition-all ${statusFilter === status ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      >
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Date */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-600 uppercase">Date:</span>
+                    {[
+                      { key: "overdue", label: "Overdue" },
+                      { key: "today", label: "Today" },
+                      { key: "this-week", label: "This Week" },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          const newSet = new Set(dateFilter);
+                          if (newSet.has(key)) {
+                            newSet.delete(key);
+                          } else {
+                            newSet.add(key);
+                          }
+                          setDateFilter(newSet);
+                        }}
+                        className={`px-2 py-1 text-xs rounded-full transition-all ${dateFilter.has(key) ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Display */}
+              {hasActiveFilters() && (
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="text-xs text-gray-600">
+                    Showing {getFilteredTodos().length} of {todos.length} todos
+                  </div>
                 </div>
               )}
-
-              {/* Status and Date Filters */}
-              <div className="flex items-center gap-4 flex-wrap">
-                {/* Status */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-600 uppercase">Status:</span>
-                  {(["all", "active", "completed"] as const).map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-2 py-1 text-xs rounded-full transition-all ${statusFilter === status ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Date */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-600 uppercase">Date:</span>
-                  {[
-                    { key: "overdue", label: "Overdue" },
-                    { key: "today", label: "Today" },
-                    { key: "this-week", label: "This Week" },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => {
-                        const newSet = new Set(dateFilter);
-                        if (newSet.has(key)) {
-                          newSet.delete(key);
-                        } else {
-                          newSet.add(key);
-                        }
-                        setDateFilter(newSet);
-                      }}
-                      className={`px-2 py-1 text-xs rounded-full transition-all ${dateFilter.has(key) ? "bg-green-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
 
-            {/* Active Filters Display */}
-            {hasActiveFilters() && (
-              <div className="pt-2 border-t border-gray-200">
-                <div className="text-xs text-gray-600">
-                  Showing {getFilteredTodos().length} of {todos.length} todos
+            {/* Drafts Section */}
+            {drafts.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-purple-600">
+                    Drafts
+                    <span className="ml-2 text-xs font-normal text-gray-500">({drafts.length})</span>
+                  </h3>
+                  <div className="flex-1 h-px bg-gray-200"></div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Drafts Section */}
-          {drafts.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-purple-600">
-                  Drafts
-                  <span className="ml-2 text-xs font-normal text-gray-500">({drafts.length})</span>
-                </h3>
-                <div className="flex-1 h-px bg-gray-200"></div>
-              </div>
-              {drafts
-                .slice() // render newest first
-                .map((d) => (
-                  <div key={d.id} className={`border rounded-lg ${d.status === "processing" ? "border-purple-300 bg-purple-50 animate-pulse" : "bg-white border-gray-300"} p-3`}>
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        {d.status === "processing" ? (
-                          <span className="inline-block h-4 w-4 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></span>
-                        ) : d.status === "queued" ? (
-                          <span className="inline-block h-4 w-4 rounded-full bg-gray-300"></span>
-                        ) : (
-                          <span className="inline-block h-4 w-4 rounded-full bg-red-300"></span>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-gray-800">{d.text}</div>
-                        <div className="mt-1 text-xs">
-                          {d.status === "processing" && <span className="text-purple-600">Processing with AI…</span>}
-                          {d.status === "queued" && <span className="text-gray-500">Queued</span>}
-                          {d.status === "error" && <span className="text-red-600">{d.error || "Failed"}</span>}
+                {drafts
+                  .slice() // render newest first
+                  .map((d) => (
+                    <div key={d.id} className={`border rounded-lg ${d.status === "processing" ? "border-purple-300 bg-purple-50 animate-pulse" : "bg-white border-gray-300"} p-3`}>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5">
+                          {d.status === "processing" ? (
+                            <span className="inline-block h-4 w-4 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></span>
+                          ) : d.status === "queued" ? (
+                            <span className="inline-block h-4 w-4 rounded-full bg-gray-300"></span>
+                          ) : (
+                            <span className="inline-block h-4 w-4 rounded-full bg-red-300"></span>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-gray-800">{d.text}</div>
+                          <div className="mt-1 text-xs">
+                            {d.status === "processing" && <span className="text-purple-600">Processing with AI…</span>}
+                            {d.status === "queued" && <span className="text-gray-500">Queued</span>}
+                            {d.status === "error" && <span className="text-red-600">{d.error || "Failed"}</span>}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-            </div>
-          )}
+                  ))}
+              </div>
+            )}
 
-          {/* Loading State */}
-          {loading && todos.length === 0 && <div className="text-center py-8 text-gray-500">Loading todos...</div>}
+            {/* Loading State */}
+            {loading && todos.length === 0 && <div className="text-center py-8 text-gray-500">Loading todos...</div>}
 
-          {/* Stats */}
-          {totalCount > 0 && (
-            <div className="text-sm text-gray-600">
-              {completedCount} of {totalCount} completed
-            </div>
-          )}
+            {/* Stats */}
+            {totalCount > 0 && (
+              <div className="text-sm text-gray-600">
+                {completedCount} of {totalCount} completed
+              </div>
+            )}
 
-          {/* Todo List */}
-          <div className="space-y-6">
-            {todos.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No todos yet. Add one above!</p>
-            ) : hasActiveFilters() && getFilteredTodos().length === 0 ? (
-              <p className="text-gray-500 text-center py-8">No todos match your filters. Try adjusting them.</p>
-            ) : (
-              (() => {
-                const todosToDisplay = hasActiveFilters() ? getFilteredTodos() : todos;
-                const groupedTodos = groupTodosByDate(todosToDisplay);
-                const groupOrder = ["Overdue", "Today", "Tomorrow", "This Week", "Later", "No Due Date"];
+            {/* Todo List */}
+            <div className="space-y-6">
+              {todos.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No todos yet. Add one above!</p>
+              ) : hasActiveFilters() && getFilteredTodos().length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No todos match your filters. Try adjusting them.</p>
+              ) : (
+                (() => {
+                  const todosToDisplay = hasActiveFilters() ? getFilteredTodos() : todos;
+                  const groupedTodos = groupTodosByDate(todosToDisplay);
+                  const groupOrder = ["Overdue", "Today", "Tomorrow", "This Week", "Later", "No Due Date"];
 
-                return groupOrder.map((groupName) => {
-                  const groupTodos = groupedTodos[groupName];
-                  if (groupTodos.length === 0) return null;
+                  return groupOrder.map((groupName) => {
+                    const groupTodos = groupedTodos[groupName];
+                    if (groupTodos.length === 0) return null;
 
-                  return (
-                    <div key={groupName} className="space-y-2">
-                      {/* Group Header */}
-                      <div className="flex items-center gap-2">
-                        <h3 className={`text-sm font-semibold uppercase tracking-wide ${groupName === "Overdue" ? "text-red-600" : groupName === "Today" ? "text-purple-600" : "text-gray-600"}`}>
-                          {groupName}
-                          <span className="ml-2 text-xs font-normal text-gray-500">({groupTodos.length})</span>
-                        </h3>
-                        <div className="flex-1 h-px bg-gray-200"></div>
-                      </div>
+                    return (
+                      <div key={groupName} className="space-y-2">
+                        {/* Group Header */}
+                        <div className="flex items-center gap-2">
+                          <h3 className={`text-sm font-semibold uppercase tracking-wide ${groupName === "Overdue" ? "text-red-600" : groupName === "Today" ? "text-purple-600" : "text-gray-600"}`}>
+                            {groupName}
+                            <span className="ml-2 text-xs font-normal text-gray-500">({groupTodos.length})</span>
+                          </h3>
+                          <div className="flex-1 h-px bg-gray-200"></div>
+                        </div>
 
-                      {/* Todos in this group */}
-                      {groupTodos.map((todo) => {
-                        // Highlight if this is from an active AI query
-                        const shouldHighlight = activeQuery && filteredTodoIds.has(todo.id);
+                        {/* Todos in this group */}
+                        {groupTodos.map((todo) => {
+                          // Highlight if this is from an active AI query
+                          const shouldHighlight = activeQuery && filteredTodoIds.has(todo.id);
 
-                        return (
-                          <div
-                            key={todo.id}
-                            className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${shouldHighlight ? "ring-2 ring-blue-400 shadow-lg" : ""} ${
-                              todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"
-                            } ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
-                          >
-                            <div className="flex items-center p-3">
-                              <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-
-                              {editingId === todo.id ? (
+                          return (
+                            <div
+                              key={todo.id}
+                              className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${shouldHighlight ? "ring-2 ring-blue-400 shadow-lg" : ""} ${
+                                todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"
+                              } ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
+                            >
+                              <div className="flex items-center p-3">
                                 <input
-                                  type="text"
-                                  value={editText}
-                                  onChange={(e) => setEditText(e.target.value)}
-                                  onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
-                                  onBlur={() => saveEdit(todo.id)}
-                                  autoFocus
-                                  className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
+                                  type="checkbox"
+                                  checked={todo.completed}
+                                  onChange={() => toggleTodo(todo.id)}
+                                  className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 />
-                              ) : (
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span
-                                      className={`cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
-                                      onClick={() => startEdit(todo.id, todo.text)}
-                                      title="Click to edit"
-                                    >
-                                      {highlightSearchTerm(todo.text)}
-                                    </span>
-                                    {todo.aiGenerated && (
-                                      <span className="text-xs text-purple-500" title="AI Generated">
-                                        ✨
+
+                                {editingId === todo.id ? (
+                                  <input
+                                    type="text"
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
+                                    onBlur={() => saveEdit(todo.id)}
+                                    autoFocus
+                                    className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
+                                  />
+                                ) : (
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
+                                        onClick={() => startEdit(todo.id, todo.text)}
+                                        title="Click to edit"
+                                      >
+                                        {highlightSearchTerm(todo.text)}
                                       </span>
-                                    )}
-                                    {todo.priority === "high" && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full">High</span>}
-                                    {todo.priority === "low" && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full">Low</span>}
-                                  </div>
-                                  {(todo.tags.length > 0 || todo.dueDate || todo.context) && (
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                                      {todo.tags.map((tag) => (
-                                        <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                                          #{tag}
-                                        </span>
-                                      ))}
-                                      {todo.dueDate && (
-                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full" title="Due date">
-                                          📅 {new Date(todo.dueDate).toLocaleDateString()}
+                                      {todo.aiGenerated && (
+                                        <span className="text-xs text-purple-500" title="AI Generated">
+                                          ✨
                                         </span>
                                       )}
+                                      {todo.priority === "high" && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full">High</span>}
+                                      {todo.priority === "low" && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full">Low</span>}
                                     </div>
-                                  )}
-                                  {todo.context && (
-                                    <div className="mt-1 text-xs text-gray-500 italic" title="Original context">
-                                      "{todo.context}"
-                                    </div>
+                                    {(todo.tags.length > 0 || todo.dueDate || todo.context) && (
+                                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                        {todo.tags.map((tag) => (
+                                          <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                            #{tag}
+                                          </span>
+                                        ))}
+                                        {todo.dueDate && (
+                                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full" title="Due date">
+                                            📅 {new Date(todo.dueDate).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {todo.context && (
+                                      <div className="mt-1 text-xs text-gray-500 italic" title="Original context">
+                                        "{todo.context}"
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="flex gap-1 ml-3">
+                                  {editingId === todo.id ? (
+                                    <>
+                                      <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
+                                        ✓
+                                      </button>
+                                      <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
+                                        ✕
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
+                                        ✏️
+                                      </button>
+                                      <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
+                                        ✕
+                                      </button>
+                                    </>
                                   )}
                                 </div>
-                              )}
-
-                              <div className="flex gap-1 ml-3">
-                                {editingId === todo.id ? (
-                                  <>
-                                    <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
-                                      ✓
-                                    </button>
-                                    <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
-                                      ✕
-                                    </button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
-                                      ✏️
-                                    </button>
-                                    <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
-                                      ✕
-                                    </button>
-                                  </>
-                                )}
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                });
-              })()
+                          );
+                        })}
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </div>
+
+            {/* Clear completed button */}
+            {completedCount > 0 && (
+              <div className="text-center">
+                <button onClick={clearCompleted} className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                  Clear completed ({completedCount})
+                </button>
+              </div>
             )}
           </div>
-
-          {/* Clear completed button */}
-          {completedCount > 0 && (
-            <div className="text-center">
-              <button onClick={clearCompleted} className="px-4 py-2 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
-                Clear completed ({completedCount})
-              </button>
-            </div>
-          )}
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 mt-auto">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {/* Brand */}
+            <div className="flex items-center gap-2">
+              <span className="text-lg">✨</span>
+              <span className="text-sm text-gray-600">
+                <span className="font-semibold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">todoish</span> - AI-powered task management
+              </span>
+            </div>
+
+            {/* Links */}
+            <div className="flex items-center gap-6 text-sm text-gray-500">
+              <a href="#" className="hover:text-purple-600 transition-colors">
+                Privacy
+              </a>
+              <a href="#" className="hover:text-purple-600 transition-colors">
+                Terms
+              </a>
+              <a href="#" className="hover:text-purple-600 transition-colors">
+                Support
+              </a>
+              <span className="text-gray-400">© 2025 todoish</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

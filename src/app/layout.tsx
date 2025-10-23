@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Todo Assistant",
-  description: "Conversational todo app powered by AI",
+  title: "todoish - AI-powered task management",
+  description: "Smart todo app with AI-powered task extraction, natural language queries, and intelligent scheduling",
 };
 
 export default function RootLayout({

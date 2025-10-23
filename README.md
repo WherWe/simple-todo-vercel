@@ -1,6 +1,6 @@
-# Simple Todo List App
+# todoish
 
-A full-stack todo list application built with Next.js 16, TypeScript, Tailwind CSS 4, and PostgreSQL. Features a clean UI with database persistence and deployed on Vercel.
+An AI-powered task management app built with Next.js 16, TypeScript, Tailwind CSS 4, and PostgreSQL. Features intelligent task extraction, natural language queries, and smart scheduling - deployed on Vercel.
 
 ## ✨ Features
 
