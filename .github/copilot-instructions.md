@@ -5,6 +5,7 @@ Full-stack Next.js 16 todo app with PostgreSQL persistence via Vercel Postgres +
 ## Architecture
 
 **3-Layer Stack:**
+
 - **Frontend**: `src/components/TodoApp.tsx` - Client component with React hooks for state management
 - **API Layer**: `src/app/api/todos/*` - Next.js 16 App Router API routes (RESTful endpoints)
 - **Database**: `src/lib/db.ts` - Drizzle ORM schema + Vercel Postgres connection
@@ -14,31 +15,36 @@ Full-stack Next.js 16 todo app with PostgreSQL persistence via Vercel Postgres +
 ## Critical Patterns
 
 ### 1. Next.js 16 App Router API Routes
+
 - **Async params**: In `/api/todos/[id]/route.ts`, params are now `Promise<{ id: string }>` - must `await params` before use
 - **Error responses**: Always return `NextResponse.json()` with appropriate status codes (503 for DB not initialized, 500 for errors)
 
 ### 2. Database Schema (Drizzle ORM)
+
 - Schema in `src/lib/db.ts` uses Drizzle's `pgTable` - NOT Prisma or raw SQL strings
 - Types auto-inferred: `Todo` from `todos.$inferSelect`, `NewTodo` from `todos.$inferInsert`
 - Connection via `drizzle(sql)` where `sql` is `@vercel/postgres` client
 
 ### 3. Input Styling Issue (CRITICAL)
+
 - Dark mode CSS (`@media (prefers-color-scheme: dark)`) causes white text on white inputs
 - **Solution**: Global CSS override in `globals.css`: `input[type="text"] { color: #000000 !important; background-color: #ffffff !important; }`
 - Always use `text-black bg-white` Tailwind classes on inputs to reinforce visibility
 
 ### 4. Database Initialization
+
 - New deployments need table creation via `POST /api/setup` endpoint
 - Frontend detects missing table (503 response with `needsSetup: true`) and shows setup button
 - Dedicated UI at `/setup` page for manual initialization
 
 ### 5. TypeScript Todo Interface
+
 ```typescript
 interface Todo {
   id: number;
   text: string;
   completed: boolean;
-  createdAt: string;  // Note: API returns ISO string, not Date object
+  createdAt: string; // Note: API returns ISO string, not Date object
   updatedAt: string;
 }
 ```

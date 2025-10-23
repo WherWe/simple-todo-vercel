@@ -5,7 +5,7 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 ## ✨ Features
 
 - ✅ Add, edit, and delete todos
-- ✅ Mark todos as complete/incomplete  
+- ✅ Mark todos as complete/incomplete
 - ✅ Inline editing (click to edit)
 - ✅ PostgreSQL database persistence (Neon)
 - ✅ RESTful API endpoints
@@ -26,7 +26,7 @@ A full-stack todo list application built with Next.js 16, TypeScript, Tailwind C
 
 ## 📋 Prerequisites
 
-- Node.js 20+ 
+- Node.js 20+
 - npm or yarn
 - Vercel account (for deployment)
 - PostgreSQL database (Neon recommended)
@@ -48,10 +48,27 @@ npm install
 
 ### 3. Set Up Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create a `.env.local` file in the root directory (this file is **git-ignored** and will never be committed):
 
 ```env
+# Database (automatically set by Vercel in production)
 POSTGRES_URL="your_postgres_connection_string"
+
+# AI Provider API Keys
+ANTHROPIC_API_KEY="your_anthropic_api_key"
+OPENAI_API_KEY="your_openai_api_key"
+
+# AI Configuration
+DEFAULT_AI_PROVIDER="anthropic"
+DEFAULT_AI_MODEL="claude-sonnet-4-5-20250929"
+FALLBACK_AI_MODEL="gpt-4o"
+```
+
+**📋 Use the template**: Copy `.env.example` to `.env.local` and fill in your actual keys:
+
+```bash
+cp .env.example .env.local
+# Then edit .env.local with your real API keys
 ```
 
 ### 4. Initialize Database
@@ -141,15 +158,18 @@ npm run db:studio    # Open Drizzle Studio
 ### Automatic Deployment (Recommended)
 
 1. **Connect to Vercel**:
+
    - Push code to GitHub
    - Import repository on [Vercel](https://vercel.com)
    - Vercel auto-detects Next.js and configures build
 
 2. **Add Database**:
+
    - In Vercel dashboard: Storage → Create Database → Neon
    - Environment variables are automatically configured
 
 3. **Initialize Database**:
+
    - Visit `your-app.vercel.app/setup`
    - Click "Setup Database" button
 
@@ -188,6 +208,7 @@ todos {
 ### White Text on White Background
 
 Fixed with CSS override in `globals.css`:
+
 ```css
 input[type="text"] {
   color: #000000 !important;
@@ -203,6 +224,34 @@ rm -rf .next
 npm run build
 ```
 
+## 🔒 Security & Environment Variables
+
+### Local Development
+
+- **`.env.local`** - Contains your actual API keys (git-ignored, **never committed**)
+- **`.env.example`** - Template with placeholder values (committed to repo)
+
+### Production (Vercel)
+
+Add environment variables in Vercel dashboard:
+
+1. Go to your project → Settings → Environment Variables
+2. Add each key:
+   - `POSTGRES_URL` (auto-set when you add Vercel Postgres)
+   - `ANTHROPIC_API_KEY`
+   - `OPENAI_API_KEY`
+   - `DEFAULT_AI_PROVIDER`
+   - `DEFAULT_AI_MODEL`
+
+### ⚠️ NEVER Commit API Keys!
+
+The `.gitignore` already excludes `.env*` files. Your keys are safe as long as you:
+
+- ✅ Only put real keys in `.env.local`
+- ✅ Use `.env.example` for documentation (fake keys only)
+- ❌ Never hardcode keys in source files
+- ❌ Never commit `.env.local` to Git
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -210,6 +259,8 @@ npm run build
 3. Commit changes (`git commit -m 'Add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+**Note**: When contributing, never include real API keys in your commits!
 
 ## 📝 License
 
