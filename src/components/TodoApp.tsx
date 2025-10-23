@@ -141,7 +141,7 @@ export default function TodoApp() {
       // Add todos with staggered animation
       setExtractedTodos(savedTodos);
       const newIds = new Set<number>();
-      
+
       for (let i = 0; i < savedTodos.length; i++) {
         await new Promise((resolve) => setTimeout(resolve, 400 * i));
         const todo = savedTodos[i];
@@ -330,7 +330,11 @@ export default function TodoApp() {
       )}
 
       {/* Input Section - ChatGPT Style */}
-      <div className={`mb-8 transition-all duration-500 ease-out ${isExtracting ? "scale-[1.02] ring-4 ring-purple-400 ring-opacity-40 shadow-2xl shadow-purple-200" : "shadow-lg hover:shadow-xl"} rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6`}>
+      <div
+        className={`mb-8 transition-all duration-500 ease-out ${
+          isExtracting ? "scale-[1.02] ring-4 ring-purple-400 ring-opacity-40 shadow-2xl shadow-purple-200" : "shadow-lg hover:shadow-xl"
+        } rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6`}
+      >
         <div className="space-y-4">
           {/* Large Textarea Input */}
           <textarea
@@ -345,7 +349,7 @@ export default function TodoApp() {
             }`}
             style={{ minHeight: "120px" }}
           />
-          
+
           {/* AI Extracting Indicator */}
           {isExtracting && (
             <div className="flex items-center gap-3 text-purple-600 animate-pulse bg-purple-50 px-4 py-3 rounded-lg">
@@ -359,7 +363,7 @@ export default function TodoApp() {
               </div>
             </div>
           )}
-          
+
           {/* Button Row */}
           <div className="flex gap-3">
             <button
@@ -387,11 +391,13 @@ export default function TodoApp() {
               )}
             </button>
           </div>
-          
+
           {/* Helper Text */}
           {!isExtracting && (
             <p className="text-xs text-gray-500 text-center">
-              <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Enter</kbd> to AI extract • <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">⌘+Enter</kbd> for simple add • <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Shift+Enter</kbd> for new line
+              <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Enter</kbd> to AI extract •{" "}
+              <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">⌘+Enter</kbd> for simple add •{" "}
+              <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Shift+Enter</kbd> for new line
             </p>
           )}
         </div>
@@ -415,7 +421,9 @@ export default function TodoApp() {
           todos.map((todo) => (
             <div
               key={todo.id}
-              className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"} ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
+              className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"} ${
+                todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""
+              }`}
             >
               <div className="flex items-center p-3">
                 <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />

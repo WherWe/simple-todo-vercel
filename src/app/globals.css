@@ -57,7 +57,8 @@ textarea {
 }
 
 @keyframes glow-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
   }
   50% {
