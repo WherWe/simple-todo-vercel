@@ -30,6 +30,7 @@ export default function TodoApp() {
   // AI extraction state
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedTodos, setExtractedTodos] = useState<any[]>([]);
+  const [newTodoIds, setNewTodoIds] = useState<Set<number>>(new Set());
 
   // Load todos from API on component mount
   useEffect(() => {
@@ -139,10 +140,20 @@ export default function TodoApp() {
 
       // Add todos with staggered animation
       setExtractedTodos(savedTodos);
+      const newIds = new Set<number>();
+      
       for (let i = 0; i < savedTodos.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 300 * i));
-        setTodos((prev) => [savedTodos[i], ...prev]);
+        await new Promise((resolve) => setTimeout(resolve, 400 * i));
+        const todo = savedTodos[i];
+        newIds.add(todo.id);
+        setNewTodoIds((prev) => new Set([...prev, todo.id]));
+        setTodos((prev) => [todo, ...prev]);
       }
+
+      // Remove animation class after 1 second
+      setTimeout(() => {
+        setNewTodoIds(new Set());
+      }, 1000);
 
       setInputText("");
       setExtractedTodos([]);
@@ -281,8 +292,15 @@ export default function TodoApp() {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      addTodo();
+    // Enter = AI Extract (default)
+    // Cmd/Ctrl + Enter = Simple Add
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (e.metaKey || e.ctrlKey) {
+        addTodo();
+      } else {
+        extractTodosWithAI();
+      }
     }
   };
 
@@ -311,46 +329,72 @@ export default function TodoApp() {
         </div>
       )}
 
-      {/* Input Section */}
-      <div className={`mb-6 transition-all duration-300 ${isExtracting ? "ring-4 ring-purple-300 ring-opacity-50" : ""}`}>
-        <div className="flex">
-          <input
-            type="text"
+      {/* Input Section - ChatGPT Style */}
+      <div className={`mb-8 transition-all duration-500 ease-out ${isExtracting ? "scale-[1.02] ring-4 ring-purple-400 ring-opacity-40 shadow-2xl shadow-purple-200" : "shadow-lg hover:shadow-xl"} rounded-2xl bg-gradient-to-br from-white to-gray-50 p-6`}>
+        <div className="space-y-4">
+          {/* Large Textarea Input */}
+          <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={isExtracting ? "✨ AI is thinking..." : "Add a todo or ramble away..."}
+            onKeyDown={handleKeyPress}
+            placeholder={isExtracting ? "✨ AI is working its magic..." : "What's on your mind? Add a single todo or ramble about everything you need to do..."}
             disabled={loading || isExtracting}
-            className={`flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base ${
-              isExtracting ? "animate-pulse" : ""
+            rows={4}
+            className={`w-full px-5 py-4 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 text-black bg-white text-base resize-none transition-all duration-300 ${
+              isExtracting ? "animate-pulse border-purple-300 bg-purple-50" : "hover:border-gray-300"
             }`}
+            style={{ minHeight: "120px" }}
           />
-          <button
-            onClick={addTodo}
-            disabled={loading || isExtracting || !inputText.trim()}
-            className="px-6 py-2 bg-blue-500 text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Adding..." : "Add"}
-          </button>
-          <button
-            onClick={extractTodosWithAI}
-            disabled={loading || isExtracting || !inputText.trim()}
-            className="px-6 py-2 bg-purple-500 text-white rounded-r-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isExtracting ? (
-              <>
-                <span className="animate-spin">✨</span>
-                <span>AI Extracting...</span>
-              </>
-            ) : (
-              <>
-                <span>✨</span>
-                <span>AI Extract</span>
-              </>
-            )}
-          </button>
+          
+          {/* AI Extracting Indicator */}
+          {isExtracting && (
+            <div className="flex items-center gap-3 text-purple-600 animate-pulse bg-purple-50 px-4 py-3 rounded-lg">
+              <div className="relative">
+                <span className="text-2xl animate-bounce">🤖</span>
+                <span className="absolute inset-0 text-2xl animate-ping opacity-30">✨</span>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">AI is analyzing your thoughts...</p>
+                <p className="text-xs text-purple-500">Extracting todos, assigning tags, priorities, and dates</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Button Row */}
+          <div className="flex gap-3">
+            <button
+              onClick={addTodo}
+              disabled={loading || isExtracting || !inputText.trim()}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {loading ? "Adding..." : "➕ Add Simple Todo"}
+            </button>
+            <button
+              onClick={extractTodosWithAI}
+              disabled={loading || isExtracting || !inputText.trim()}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white font-medium rounded-xl hover:from-purple-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {isExtracting ? (
+                <>
+                  <span className="animate-spin text-xl">✨</span>
+                  <span>Extracting...</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xl">✨</span>
+                  <span>AI Extract All</span>
+                </>
+              )}
+            </button>
+          </div>
+          
+          {/* Helper Text */}
+          {!isExtracting && (
+            <p className="text-xs text-gray-500 text-center">
+              <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Enter</kbd> to AI extract • <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">⌘+Enter</kbd> for simple add • <kbd className="px-2 py-0.5 bg-gray-100 rounded border border-gray-300 text-xs font-mono">Shift+Enter</kbd> for new line
+            </p>
+          )}
         </div>
-        {isExtracting && <div className="mt-2 text-sm text-purple-600 animate-pulse">🤖 AI is analyzing your text and extracting todos...</div>}
       </div>
 
       {/* Loading State */}
@@ -371,7 +415,7 @@ export default function TodoApp() {
           todos.map((todo) => (
             <div
               key={todo.id}
-              className={`border rounded-lg transition-all ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"} ${todo.aiGenerated ? "border-l-4 border-l-purple-400" : ""}`}
+              className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"} ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
             >
               <div className="flex items-center p-3">
                 <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />

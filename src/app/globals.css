@@ -26,7 +26,49 @@ body {
 }
 
 /* Ensure input text is always visible - clean override */
-input[type="text"] {
+input[type="text"],
+textarea {
   color: #000000 !important;
   background-color: #ffffff !important;
+}
+
+/* Custom animations for AI todo extraction */
+@keyframes slideInFromTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  60% {
+    transform: translateY(5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.6);
+  }
+}
+
+.todo-appear {
+  animation: slideInFromTop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ai-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
 }
