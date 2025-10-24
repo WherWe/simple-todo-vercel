@@ -1821,7 +1821,8 @@ export default function TodoApp() {
               <span className="text-gray-400">© 2025 todoish</span>
               <span className="text-gray-400">•</span>
               <span className="text-xs text-gray-400" title="Last deployed">
-                Updated {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                Updated {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} at{" "}
+                {new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
               </span>
             </div>
           </div>
