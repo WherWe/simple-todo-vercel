@@ -1,0 +1,17 @@
+{
+  "name": "todoish - AI-powered task management",
+  "short_name": "todoish",
+  "description": "Smart todo app with AI-powered task extraction and natural language queries",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

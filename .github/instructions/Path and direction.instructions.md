@@ -89,7 +89,8 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
 6. ✅ Advanced search & quick filters (DONE - Live search + Priority/Tags/Status/Date filters)
 7. ✅ Conversational summary panel (DONE - "What's Ahead" narrative with markdown parsing)
 8. ✅ Intelligent model selection (DONE - Adaptive fast/advanced tier based on complexity)
-9. 🎯 Add AI provider configuration UI
+9. ✅ SEO & Branding for Beta Launch (DONE - Meta tags, OG, Twitter Cards, favicons, manifest)
+10. 🎯 Add AI provider configuration UI (NEXT UP)
 
 ## Phase 2 Priorities (Polish & Power Features)
 
@@ -101,14 +102,40 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
    - Empty state illustrations and onboarding
    - Accessibility (keyboard navigation, ARIA labels, screen reader support)
 
-2. **Advanced AI Features**:
+2. **User Profile & Personalization** (PRIORITY):
 
-   - Smart scheduling suggestions ("This might be easier tomorrow morning")
+   - **Personal Settings Page** (`/settings/profile`):
+     - Basic info: Age, gender (M/F/Other), occupation
+     - Sleep schedule: Current wake time, ideal wake time, current bedtime, ideal bedtime
+     - General bio/context field for AI to understand user better
+   - **Location Settings**:
+     - Home address (for Google Maps API integration)
+     - Work address (for commute calculations)
+   - **AI Personalization**:
+     - Use profile data to provide context-aware suggestions
+     - Example: "You usually wake at 7am, want to schedule this before work?"
+     - Consider sleep schedule when suggesting task times
+   - **Database Schema** (`userProfiles` table):
+     - `userId`, `age`, `gender`, `occupation`
+     - `currentWakeTime`, `idealWakeTime`, `currentBedtime`, `idealBedtime`
+     - `homeAddress`, `workAddress` (encrypted)
+     - `bio`, `preferences` (JSON)
+
+3. **Smart Scheduling with Location** (Future):
+
+   - Google Maps API integration for travel time calculations
+   - Auto-suggest departure times for appointments based on home/work location
+   - Traffic-aware notifications ("Leave now to make your 2pm meeting")
+   - Commute-aware task scheduling ("Do this before leaving for work")
+
+4. **Advanced AI Features**:
+
+   - Smart scheduling suggestions using profile data ("This might be easier in the morning based on your schedule")
    - Recurring todos detection ("every week" → auto-create recurring pattern)
    - Context-aware suggestions ("You have 3 work tasks due today, want to prioritize?")
    - Natural language todo editing ("move dentist to Friday")
 
-3. **AI Provider UI**:
+5. **AI Provider UI**:
 
    - Settings/preferences page
    - Select preferred AI provider (Anthropic/OpenAI)
@@ -116,11 +143,32 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
    - Cost tracking (tokens used, estimated monthly cost)
    - Rate limiting configuration
 
-4. **Performance & Scale**:
+6. **Performance & Scale**:
    - Pagination for large todo lists (100+ items)
    - Virtual scrolling for smooth performance
    - Optimistic updates for all mutations
    - Local storage backup (offline-first mode)
+
+## Future Enhancements Roadmap
+
+### Personal Context Engine
+
+- Profile-aware AI prompts: Pass user context (age, occupation, schedule) to AI for better suggestions
+- Chronotype optimization: Suggest task times based on when user is most productive (morning/night person)
+- Work-life balance tracking: Analyze ratio of work vs personal tasks, suggest breaks
+
+### Location Intelligence
+
+- **Google Maps Platform APIs needed**:
+  - Directions API (travel time calculations)
+  - Distance Matrix API (batch travel time queries)
+  - Geocoding API (address validation)
+- **Environment variables**: `GOOGLE_MAPS_API_KEY`
+- **Privacy**: Encrypt address data at rest, only decrypt for API calls
+- **Features**:
+  - "Leave by" notifications for appointments
+  - Traffic-based rescheduling suggestions
+  - Nearby task clustering ("You have errands near work, do them on your commute?")
 
 ## Lessons Learned
 

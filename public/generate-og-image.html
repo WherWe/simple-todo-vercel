@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generate OG Image - todoish</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      #canvas {
+        border: 2px solid #ccc;
+        display: block;
+        margin: 20px 0;
+      }
+      button {
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin: 10px 0;
+      }
+      button:hover {
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Generate OG Image for todoish</h1>
+    <p>This will create a 1200x630px Open Graph image for social media sharing.</p>
+
+    <canvas id="canvas" width="1200" height="630"></canvas>
+
+    <button onclick="downloadImage()">📥 Download og-image.png</button>
+
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click "Download og-image.png" button above</li>
+      <li>Save the file to <code>public/og-image.png</code></li>
+      <li>You're done! ✅</li>
+    </ol>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+      gradient.addColorStop(0, "#8b5cf6");
+      gradient.addColorStop(1, "#ec4899");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 1200, 630);
+
+      // White overlay for better text contrast
+      ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.fillRect(0, 0, 1200, 630);
+
+      // Checkmark icon (large)
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.lineWidth = 40;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(200, 315);
+      ctx.lineTo(350, 465);
+      ctx.lineTo(650, 165);
+      ctx.stroke();
+
+      // App name
+      ctx.fillStyle = "white";
+      ctx.font = "bold 120px system-ui, -apple-system, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("todoish", 600, 280);
+
+      // Tagline
+      ctx.font = "48px system-ui, -apple-system, sans-serif";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.fillText("AI-powered task management", 600, 370);
+
+      // Subtitle
+      ctx.font = "36px system-ui, -apple-system, sans-serif";
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.fillText("Just ramble, and let AI organize your tasks", 600, 440);
+
+      // AI sparkles decoration
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.font = "60px system-ui";
+      ctx.fillText("✨", 350, 280);
+      ctx.fillText("✨", 850, 280);
+
+      function downloadImage() {
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "og-image.png";
+          a.click();
+          URL.revokeObjectURL(url);
+          alert("✅ Downloaded! Save it to public/og-image.png");
+        });
+      }
+    </script>
+  </body>
+</html>

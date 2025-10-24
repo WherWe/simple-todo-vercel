@@ -191,13 +191,30 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 ## Key Files
 
 - `src/lib/db.ts` - Database schema and connection (single source of truth for data structure)
-- `src/lib/modelSelector.ts` - Intelligent AI model selection logic (NEW)
+- `src/lib/modelSelector.ts` - Intelligent AI model selection logic
 - `src/app/api/todos/route.ts` - GET all todos, POST new todo
 - `src/app/api/todos/[id]/route.ts` - PUT update, DELETE todo
 - `src/app/api/ai/extract/route.ts` - AI todo extraction from rambling text (with adaptive model selection)
 - `src/app/api/ai/query/route.ts` - AI query detection and filtering (with confidence-based escalation)
 - `src/components/TodoApp.tsx` - Main UI component (inline editing, async operations, query detection, search/filters, summary)
+- `src/app/layout.tsx` - Root layout with comprehensive SEO meta tags
+- `src/app/sitemap.ts` - Auto-generated XML sitemap for search engines
+- `public/manifest.json` - PWA manifest for installable app
+- `public/robots.txt` - Search engine crawler rules
 - `drizzle.config.ts` - Drizzle config (uses `POSTGRES_URL` env var)
+
+## SEO & Branding (Beta Ready)
+
+- **Meta tags**: Comprehensive title, description, keywords in `src/app/layout.tsx`
+- **Open Graph**: Social media preview cards (Facebook, LinkedIn) with image support
+- **Twitter Cards**: Large image cards for Twitter sharing
+- **PWA support**: Installable app with manifest.json (purple/pink gradient theme)
+- **Sitemap**: Auto-generated at `/sitemap.xml` for Google indexing
+- **Robots.txt**: Search engine crawler configuration
+- **Favicon system**: SVG icon ready, PNG variants generated via `public/generate-og-image.html`
+- **Brand colors**: Purple (#8b5cf6) to Pink (#ec4899) gradient
+- **Tagline**: "Just ramble, and let AI organize your tasks"
+- **Launch checklist**: See `docs/BETA_LAUNCH_CHECKLIST.md` for pre-deployment tasks
 
 ## Environment Variables
 
@@ -220,10 +237,5 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 8. **Search highlighting**: Use `highlightSearchTerm()` to wrap matches in `<span className="bg-yellow-200">` - handles case-insensitive matching
 9. **Model selection**: System auto-selects fast (Haiku/o4-mini) or advanced (Sonnet/GPT-4.1) based on complexity - check server logs for reasoning
 10. **Confidence escalation**: Fast model responses with confidence < 0.7 or suspicious patterns (0 matches, >100 matches) auto-retry with advanced model (max 1 retry)
-11. **Timestamps**: Database stores `timestamp`, API returns ISO strings, frontend displays as-is (no Date parsing needed for display)
-12. **Auto-deployment**: Don't run `npx vercel --prod` manually - Git push triggers Vercel build automatically
-13. **AI query ID matching**: Always show `ID ${t.id}:` in prompts, never numbered lists (prevents index/ID confusion)
-14. **Timer cleanup**: Clear old `queryClearTimer` before setting new one, cleanup in useEffect unmount
-15. **Filter cascade**: Apply AI query filter FIRST in `getFilteredTodos()`, then manual filters (search/priority/tags/status/date)
-16. **Search highlighting**: Use `highlightSearchTerm()` to wrap matches in `<span className="bg-yellow-200">` - handles case-insensitive matching
-17. **Model selection**: System auto-selects fast (Haiku/o4-mini) or advanced (Sonnet/GPT-4.1) based on complexity - check server logs for reasoning
+11. **Date grouping**: `groupTodosByDate()` filters to active (incomplete) todos only - completed todos shown in separate "Completed" section at bottom
+12. **Completed todos visibility**: Completed section pulls from full `todos` array (not filtered) unless `statusFilter === "active"`

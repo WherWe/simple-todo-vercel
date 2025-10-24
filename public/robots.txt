@@ -1,0 +1,11 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow authentication pages
+Disallow: /sign-in/
+Disallow: /sign-up/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://todoish.vercel.app/sitemap.xml
