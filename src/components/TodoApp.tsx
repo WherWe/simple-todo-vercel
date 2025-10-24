@@ -636,10 +636,7 @@ export default function TodoApp() {
     printWindow.document.write(html);
     printWindow.document.close();
 
-    // Auto-print after a short delay for rendering
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    // Don't auto-print - let user view and decide to print
   };
 
   const fetchTodos = async () => {
@@ -1298,56 +1295,45 @@ export default function TodoApp() {
                   );
                 })()}
 
-              {/* Generate Schedule Panel */}
+              {/* View Schedule Panel */}
               {todos.length > 0 && !aiActive && (
-                <div className="mt-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 shadow-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">📋</span>
-                    <h3 className="text-sm font-bold text-green-900 uppercase tracking-wide">Generate Schedule</h3>
+                <div className="mt-4 bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">📋</span>
+                      <span className="text-xs font-medium text-gray-600">View Schedule:</span>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => {
+                          setScheduleRange("today");
+                          printSchedule();
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200"
+                      >
+                        Today
+                      </button>
+                      <button
+                        onClick={() => {
+                          setScheduleRange("tomorrow");
+                          printSchedule();
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200"
+                      >
+                        Tomorrow
+                      </button>
+                      <button
+                        onClick={() => {
+                          setScheduleRange("week");
+                          printSchedule();
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200"
+                      >
+                        Week
+                      </button>
+                    </div>
                   </div>
-
-                  <p className="text-sm text-gray-700 mb-3">Create a printable schedule for your todos</p>
-
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={() => setScheduleRange("today")}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                        scheduleRange === "today" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => setScheduleRange("tomorrow")}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                        scheduleRange === "tomorrow" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      Tomorrow
-                    </button>
-                    <button
-                      onClick={() => setScheduleRange("week")}
-                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                        scheduleRange === "week" ? "bg-green-600 text-white shadow-md" : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                      }`}
-                    >
-                      Week
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={printSchedule}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-lg hover:from-green-700 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path
-                        fillRule="evenodd"
-                        d="M7.875 1.5C6.839 1.5 6 2.34 6 3.375v2.99c-.426.053-.851.11-1.274.174-1.454.218-2.476 1.483-2.476 2.917v6.294a3 3 0 003 3h.27l-.155 1.705A1.875 1.875 0 007.232 22.5h9.536a1.875 1.875 0 001.867-2.045l-.155-1.705h.27a3 3 0 003-3V9.456c0-1.434-1.022-2.7-2.476-2.917A48.716 48.716 0 0018 6.366V3.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM16.5 6.205v-2.83A.375.375 0 0016.125 3h-8.25a.375.375 0 00-.375.375v2.83a49.353 49.353 0 019 0zm-.217 8.265c.178.018.317.16.333.337l.526 5.784a.375.375 0 01-.374.409H7.232a.375.375 0 01-.374-.409l.526-5.784a.373.373 0 01.333-.337 41.741 41.741 0 018.566 0zm.967-3.97a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75H18a.75.75 0 01-.75-.75V10.5zM15 9.75a.75.75 0 00-.75.75v.008c0 .414.336.75.75.75h.008a.75.75 0 00.75-.75V10.5a.75.75 0 00-.75-.75H15z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                    <span>Print Schedule</span>
-                  </button>
                 </div>
               )}
             </div>
