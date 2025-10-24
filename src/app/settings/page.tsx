@@ -104,7 +104,7 @@ export default function SettingsPage() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="text-3xl">✨</div>
+              <img src="/icon.svg" alt="todoish logo" className="w-10 h-10" />
               <div>
                 <Link href="/">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity">todoish</h1>
@@ -139,6 +139,29 @@ export default function SettingsPage() {
       <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">Settings</h2>
         <p className="text-gray-600 mb-8">Manage your AI usage and preferences</p>
+
+        {/* Quick Navigation Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Link href="/profile" className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 hover:border-purple-400 hover:shadow-lg transition-all group">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">👤</span>
+              <h3 className="text-xl font-semibold text-gray-900 group-hover:text-purple-700 transition-colors">Your Profile</h3>
+            </div>
+            <p className="text-sm text-gray-600">Add personal context to help AI give you better suggestions based on your schedule, preferences, and lifestyle.</p>
+            <div className="mt-3 text-purple-600 font-medium text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
+              Edit Profile <span>→</span>
+            </div>
+          </Link>
+
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-6 opacity-50 cursor-not-allowed">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">🔑</span>
+              <h3 className="text-xl font-semibold text-gray-900">AI Providers</h3>
+              <span className="px-2 py-1 bg-gray-200 text-gray-600 text-xs font-semibold rounded">Coming Soon</span>
+            </div>
+            <p className="text-sm text-gray-600">Configure AI provider preferences, manage API keys, and view cost estimates.</p>
+          </div>
+        </div>
 
         {/* Error Message */}
         {error && (

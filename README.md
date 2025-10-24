@@ -44,6 +44,15 @@ An AI-powered task management app built with Next.js 16, TypeScript, Tailwind CS
 - 🎨 **Search Highlighting**: Yellow highlight on matching text in todos
 - 📊 **What's Ahead Summary**: Conversational AI-generated summary panel showing upcoming tasks at a glance
 
+### 👤 User Profile & Personalization (NEW!)
+
+- 🎯 **Personal Context**: Add age, gender, occupation to help AI understand you better
+- 😴 **Sleep Schedule**: Track current & ideal wake/bed times for smart task scheduling
+- ✍️ **Bio & Preferences**: Free-form context field for AI to learn your working style
+- 🔒 **Privacy First**: All profile data is private and encrypted
+- 🎨 **Beautiful UI**: Gradient-themed profile page matching app design
+- 🚀 **Settings Integration**: Easy access from Settings page
+
 ## 🚀 Tech Stack
 
 - **Framework**: Next.js 16 (App Router)

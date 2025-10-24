@@ -90,7 +90,8 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
 7. ✅ Conversational summary panel (DONE - "What's Ahead" narrative with markdown parsing)
 8. ✅ Intelligent model selection (DONE - Adaptive fast/advanced tier based on complexity)
 9. ✅ SEO & Branding for Beta Launch (DONE - Meta tags, OG, Twitter Cards, favicons, manifest)
-10. 🎯 Add AI provider configuration UI (NEXT UP)
+10. ✅ User Profile & Personalization (DONE - Age, gender, occupation, sleep schedule, bio)
+11. 🎯 Add AI provider configuration UI (NEXT UP)
 
 ## Phase 2 Priorities (Polish & Power Features)
 
@@ -102,24 +103,27 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
    - Empty state illustrations and onboarding
    - Accessibility (keyboard navigation, ARIA labels, screen reader support)
 
-2. **User Profile & Personalization** (PRIORITY):
+2. **User Profile & Personalization** (DONE ✅):
 
-   - **Personal Settings Page** (`/settings/profile`):
-     - Basic info: Age, gender (M/F/Other), occupation
-     - Sleep schedule: Current wake time, ideal wake time, current bedtime, ideal bedtime
-     - General bio/context field for AI to understand user better
-   - **Location Settings**:
-     - Home address (for Google Maps API integration)
-     - Work address (for commute calculations)
-   - **AI Personalization**:
-     - Use profile data to provide context-aware suggestions
-     - Example: "You usually wake at 7am, want to schedule this before work?"
-     - Consider sleep schedule when suggesting task times
-   - **Database Schema** (`userProfiles` table):
-     - `userId`, `age`, `gender`, `occupation`
-     - `currentWakeTime`, `idealWakeTime`, `currentBedtime`, `idealBedtime`
-     - `homeAddress`, `workAddress` (encrypted)
-     - `bio`, `preferences` (JSON)
+   - ✅ **Personal Settings Page** (`/profile`):
+     - ✅ Basic info: Age, gender (M/F/Other/Non-binary), occupation
+     - ✅ Sleep schedule: Current wake time, ideal wake time, current bedtime, ideal bedtime
+     - ✅ General bio/context field for AI to understand user better
+     - ✅ Beautiful gradient UI matching brand design
+     - ✅ Privacy notice and security messaging
+   - ✅ **Database Schema** (`userProfiles` table):
+     - ✅ `userId`, `age`, `gender`, `occupation`
+     - ✅ `currentWakeTime`, `idealWakeTime`, `currentBedtime`, `idealBedtime`
+     - ✅ `bio` (text field for general context)
+     - ✅ Migration script: `npx tsx scripts/add-profiles-table.ts`
+   - ✅ **API Endpoints**:
+     - ✅ GET `/api/profile` - Fetch user profile
+     - ✅ POST `/api/profile` - Create new profile
+     - ✅ PUT `/api/profile` - Update existing profile
+     - ✅ DELETE `/api/profile` - Delete profile
+   - ✅ **Settings Integration**: Card link from Settings page to Profile
+   - 🎯 **Next**: Use profile data in AI prompts for personalized suggestions
+   - 🔮 **Future**: Location settings (home/work addresses for commute calculations)
 
 3. **Smart Scheduling with Location** (Future):
 

@@ -39,6 +39,29 @@ export const usage = pgTable("usage", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Define the user profiles table schema
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().unique(), // Clerk user ID
+
+  // Basic info
+  age: integer("age"),
+  gender: text("gender"), // "male", "female", "non-binary", "other"
+  occupation: text("occupation"),
+
+  // Sleep schedule
+  currentWakeTime: text("current_wake_time"), // "07:00" format
+  idealWakeTime: text("ideal_wake_time"),
+  currentBedtime: text("current_bedtime"),
+  idealBedtime: text("ideal_bedtime"),
+
+  // General context for AI
+  bio: text("bio"),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Create the database instance
 export const db = drizzle(sql);
 
@@ -47,3 +70,5 @@ export type Todo = typeof todos.$inferSelect;
 export type NewTodo = typeof todos.$inferInsert;
 export type Usage = typeof usage.$inferSelect;
 export type NewUsage = typeof usage.$inferInsert;
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type NewUserProfile = typeof userProfiles.$inferInsert;

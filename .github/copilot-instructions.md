@@ -32,9 +32,11 @@ Full-stack Next.js 16 todo app with PostgreSQL persistence via Vercel Postgres +
 ### 3. Database Schema (Drizzle ORM)
 
 - Schema in `src/lib/db.ts` uses Drizzle's `pgTable` - NOT Prisma or raw SQL strings
-- **User isolation field**: `userId: text("user_id").notNull()` - required on all todos
+- **Three main tables**: `todos`, `usage`, `userProfiles`
+- **User isolation field**: `userId: text("user_id").notNull()` - required on all todos and profiles
 - Types auto-inferred: `Todo` from `todos.$inferSelect`, `NewTodo` from `todos.$inferInsert`
 - Connection via `drizzle(sql)` where `sql` is `@vercel/postgres` client
+- **User profiles**: Store personalization data (age, gender, occupation, sleep schedule, bio) for AI context
 
 ### 3. Input Styling Issue (CRITICAL)
 
@@ -196,7 +198,10 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 - `src/app/api/todos/[id]/route.ts` - PUT update, DELETE todo
 - `src/app/api/ai/extract/route.ts` - AI todo extraction from rambling text (with adaptive model selection)
 - `src/app/api/ai/query/route.ts` - AI query detection and filtering (with confidence-based escalation)
+- `src/app/api/profile/route.ts` - GET/POST/PUT/DELETE user profile (personalization data)
 - `src/components/TodoApp.tsx` - Main UI component (inline editing, async operations, query detection, search/filters, summary)
+- `src/app/profile/page.tsx` - User profile settings page
+- `src/app/settings/page.tsx` - Settings & usage statistics
 - `src/app/layout.tsx` - Root layout with comprehensive SEO meta tags
 - `src/app/sitemap.ts` - Auto-generated XML sitemap for search engines
 - `public/manifest.json` - PWA manifest for installable app
@@ -239,3 +244,6 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 10. **Confidence escalation**: Fast model responses with confidence < 0.7 or suspicious patterns (0 matches, >100 matches) auto-retry with advanced model (max 1 retry)
 11. **Date grouping**: `groupTodosByDate()` filters to active (incomplete) todos only - completed todos shown in separate "Completed" section at bottom
 12. **Completed todos visibility**: Completed section pulls from full `todos` array (not filtered) unless `statusFilter === "active"`
+13. **User profiles**: Optional personalization data stored in `userProfiles` table - use `npx tsx scripts/add-profiles-table.ts` to add table to existing databases
+14. **Date grouping**: `groupTodosByDate()` filters to active (incomplete) todos only - completed todos shown in separate "Completed" section at bottom
+15. **Completed todos visibility**: Completed section pulls from full `todos` array (not filtered) unless `statusFilter === "active"`

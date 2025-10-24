@@ -39,9 +39,28 @@ export async function POST() {
       );
     `;
 
+    // Create the user_profiles table
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        id serial PRIMARY KEY NOT NULL,
+        user_id text NOT NULL UNIQUE,
+        age integer,
+        gender text,
+        occupation text,
+        current_wake_time text,
+        ideal_wake_time text,
+        current_bedtime text,
+        ideal_bedtime text,
+        bio text,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
     // Create indexes
     await sql`CREATE INDEX IF NOT EXISTS idx_todos_user_id ON todos(user_id);`;
     await sql`CREATE INDEX IF NOT EXISTS idx_usage_user_id ON usage(user_id);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);`;
 
     // Add model tracking columns if they don't exist (for existing tables)
     await sql`ALTER TABLE usage ADD COLUMN IF NOT EXISTS last_anthropic_model text;`;
