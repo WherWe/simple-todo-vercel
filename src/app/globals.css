@@ -79,6 +79,15 @@ textarea {
   }
 }
 
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .todo-appear {
   animation: slideInFromTop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -89,4 +98,8 @@ textarea {
 
 .animate-slide-down {
   animation: slide-down 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-in;
 }

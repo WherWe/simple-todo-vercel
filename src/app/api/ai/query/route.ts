@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { auth } from "@clerk/nextjs/server";
+import { trackUsage } from "@/lib/trackUsage";
+import { selectQueryModel, validateQueryResults, isLowConfidence, MAX_ESCALATIONS_PER_REQUEST } from "@/lib/modelSelector";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +24,14 @@ export async function POST(request: NextRequest) {
 
     console.log("Query detection for:", text);
 
+    // Track escalations to prevent runaway costs
+    let escalationCount = 0;
+
+    // Intelligently select model based on complexity
+    const modelSelection = selectQueryModel(text, todos);
+    console.log(`Model selection: ${modelSelection.tier} tier - ${modelSelection.reason}`);
+    console.log(`Selected models: Anthropic=${modelSelection.anthropicModel}, OpenAI=${modelSelection.openaiModel}`);
+
     // Check for API keys
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -30,21 +40,70 @@ export async function POST(request: NextRequest) {
 
     // Try Anthropic first, fallback to OpenAI
     let result;
+    let usedTier = modelSelection.tier;
+
     if (anthropicKey) {
-      console.log("Using Anthropic for query detection");
+      console.log(`Using Anthropic for query detection (${modelSelection.anthropicModel})`);
       try {
-        result = await detectWithAnthropic(text, todos, anthropicKey);
+        result = await detectWithAnthropic(text, todos, anthropicKey, modelSelection.anthropicModel);
+        await trackUsage(userId, "query", "anthropic", modelSelection.anthropicModel);
+
+        // Check for low confidence or suspicious results if we used fast model
+        if (modelSelection.tier === "fast" && escalationCount < MAX_ESCALATIONS_PER_REQUEST) {
+          const confidenceCheck = isLowConfidence(result);
+          const validationCheck = validateQueryResults(result, text, todos);
+
+          if (confidenceCheck.isLow || !validationCheck.isValid) {
+            const escalationReason = confidenceCheck.reason || validationCheck.reason;
+            console.log(`⚠️ ESCALATION: ${escalationReason}`);
+            if (confidenceCheck.confidence !== undefined) {
+              console.log(`   Original confidence: ${confidenceCheck.confidence.toFixed(2)}`);
+            }
+            escalationCount++;
+
+            // Retry with advanced model
+            const advancedModel = "claude-sonnet-4-5-20250929";
+            result = await detectWithAnthropic(text, todos, anthropicKey, advancedModel);
+            await trackUsage(userId, "query", "anthropic", advancedModel);
+            usedTier = "advanced";
+            console.log(`✅ Escalation complete - used advanced model`);
+          }
+        }
       } catch (err: any) {
         console.error("Anthropic failed, falling back to OpenAI:", err.message);
         if (openaiKey) {
-          result = await detectWithOpenAI(text, todos, openaiKey);
+          result = await detectWithOpenAI(text, todos, openaiKey, modelSelection.openaiModel);
+          await trackUsage(userId, "query", "openai", modelSelection.openaiModel);
         } else {
           throw err;
         }
       }
     } else if (openaiKey) {
-      console.log("Using OpenAI for query detection");
-      result = await detectWithOpenAI(text, todos, openaiKey);
+      console.log(`Using OpenAI for query detection (${modelSelection.openaiModel})`);
+      result = await detectWithOpenAI(text, todos, openaiKey, modelSelection.openaiModel);
+      await trackUsage(userId, "query", "openai", modelSelection.openaiModel);
+
+      // Check for low confidence or suspicious results if we used fast model
+      if (modelSelection.tier === "fast" && escalationCount < MAX_ESCALATIONS_PER_REQUEST) {
+        const confidenceCheck = isLowConfidence(result);
+        const validationCheck = validateQueryResults(result, text, todos);
+
+        if (confidenceCheck.isLow || !validationCheck.isValid) {
+          const escalationReason = confidenceCheck.reason || validationCheck.reason;
+          console.log(`⚠️ ESCALATION: ${escalationReason}`);
+          if (confidenceCheck.confidence !== undefined) {
+            console.log(`   Original confidence: ${confidenceCheck.confidence.toFixed(2)}`);
+          }
+          escalationCount++;
+
+          // Retry with advanced model
+          const advancedModel = "gpt-4.1";
+          result = await detectWithOpenAI(text, todos, openaiKey, advancedModel);
+          await trackUsage(userId, "query", "openai", advancedModel);
+          usedTier = "advanced";
+          console.log(`✅ Escalation complete - used advanced model`);
+        }
+      }
     } else {
       return NextResponse.json({ error: "No AI provider configured" }, { status: 503 });
     }
@@ -57,7 +116,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function detectWithAnthropic(text: string, todos: any[], apiKey: string) {
+async function detectWithAnthropic(text: string, todos: any[], apiKey: string, model: string) {
   const anthropic = new Anthropic({ apiKey });
   const prompt = `You are a smart todo assistant. Analyze this user input and determine if it's a QUERY/QUESTION about their todos, or if it's TODO CREATION input.
 
@@ -72,19 +131,24 @@ Respond in JSON format with ACTUAL todo IDs (not array indexes):
   "intent": "filter_by_tag" | "filter_by_priority" | "filter_by_date" | "filter_by_status" | "summarize" | "search" | "todo_creation",
   "keywords": ["word1", "word2"],
   "response": "A natural language answer to their query",
-  "matchingTodoIds": [actual todo IDs here, e.g., 38, 34]
+  "matchingTodoIds": [actual todo IDs here, e.g., 38, 34],
+  "confidence": 0.95,
+  "confidenceReason": "Clear intent with specific keywords"
 }
 
-IMPORTANT: Use the actual todo IDs from "ID X:" in your matchingTodoIds array, NOT array positions.
+IMPORTANT: 
+- Use the actual todo IDs from "ID X:" in your matchingTodoIds array, NOT array positions.
+- Include a confidence score (0-1) indicating how certain you are about this classification.
+- Provide a brief reason for your confidence level.
 
 Examples:
-- "What's urgent?" → isQuery: true, intent: "filter_by_priority", keywords: ["urgent", "high"], response: "You have 3 urgent tasks...", matchingTodoIds: [actual IDs of urgent todos]
-- "Show me work stuff" → isQuery: true, intent: "filter_by_tag", keywords: ["work"], response: "Here are your work todos...", matchingTodoIds: [actual IDs of work todos]
-- "What's next week?" → isQuery: true, intent: "filter_by_date", keywords: ["next week"], response: "You have 5 tasks next week...", matchingTodoIds: [actual IDs of next week todos]
-- "buy groceries tomorrow" → isQuery: false, intent: "todo_creation", keywords: [], response: "", matchingTodoIds: []`;
+- "What's urgent?" → isQuery: true, intent: "filter_by_priority", keywords: ["urgent", "high"], response: "You have 3 urgent tasks...", matchingTodoIds: [actual IDs of urgent todos], confidence: 0.95, confidenceReason: "Clear priority filter request"
+- "Show me work stuff" → isQuery: true, intent: "filter_by_tag", keywords: ["work"], response: "Here are your work todos...", matchingTodoIds: [actual IDs of work todos], confidence: 0.9, confidenceReason: "Specific tag filter"
+- "What's next week?" → isQuery: true, intent: "filter_by_date", keywords: ["next week"], response: "You have 5 tasks next week...", matchingTodoIds: [actual IDs of next week todos], confidence: 0.85, confidenceReason: "Date range query"
+- "buy groceries tomorrow" → isQuery: false, intent: "todo_creation", keywords: [], response: "", matchingTodoIds: [], confidence: 0.98, confidenceReason: "Clear action item with future date"`;
 
   const message = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20240620",
+    model,
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],
   });
@@ -102,7 +166,7 @@ Examples:
   return JSON.parse(jsonMatch[0]);
 }
 
-async function detectWithOpenAI(text: string, todos: any[], apiKey: string) {
+async function detectWithOpenAI(text: string, todos: any[], apiKey: string, model: string) {
   const openai = new OpenAI({ apiKey });
   const prompt = `You are a smart todo assistant. Analyze this user input and determine if it's a QUERY/QUESTION about their todos, or if it's TODO CREATION input.
 
@@ -117,19 +181,24 @@ Respond in JSON format with ACTUAL todo IDs (not array indexes):
   "intent": "filter_by_tag" | "filter_by_priority" | "filter_by_date" | "filter_by_status" | "summarize" | "search" | "todo_creation",
   "keywords": ["word1", "word2"],
   "response": "A natural language answer to their query",
-  "matchingTodoIds": [actual todo IDs here, e.g., 38, 34]
+  "matchingTodoIds": [actual todo IDs here, e.g., 38, 34],
+  "confidence": 0.95,
+  "confidenceReason": "Clear intent with specific keywords"
 }
 
-IMPORTANT: Use the actual todo IDs from "ID X:" in your matchingTodoIds array, NOT array positions.
+IMPORTANT: 
+- Use the actual todo IDs from "ID X:" in your matchingTodoIds array, NOT array positions.
+- Include a confidence score (0-1) indicating how certain you are about this classification.
+- Provide a brief reason for your confidence level.
 
 Examples:
-- "What's urgent?" → isQuery: true, intent: "filter_by_priority", keywords: ["urgent", "high"], response: "You have 3 urgent tasks...", matchingTodoIds: [actual IDs of urgent todos]
-- "Show me work stuff" → isQuery: true, intent: "filter_by_tag", keywords: ["work"], response: "Here are your work todos...", matchingTodoIds: [actual IDs of work todos]
-- "What's next week?" → isQuery: true, intent: "filter_by_date", keywords: ["next week"], response: "You have 5 tasks next week...", matchingTodoIds: [actual IDs of next week todos]
-- "buy groceries tomorrow" → isQuery: false, intent: "todo_creation", keywords: [], response: "", matchingTodoIds: []`;
+- "What's urgent?" → isQuery: true, intent: "filter_by_priority", keywords: ["urgent", "high"], response: "You have 3 urgent tasks...", matchingTodoIds: [actual IDs of urgent todos], confidence: 0.95, confidenceReason: "Clear priority filter request"
+- "Show me work stuff" → isQuery: true, intent: "filter_by_tag", keywords: ["work"], response: "Here are your work todos...", matchingTodoIds: [actual IDs of work todos], confidence: 0.9, confidenceReason: "Specific tag filter"
+- "What's next week?" → isQuery: true, intent: "filter_by_date", keywords: ["next week"], response: "You have 5 tasks next week...", matchingTodoIds: [actual IDs of next week todos], confidence: 0.85, confidenceReason: "Date range query"
+- "buy groceries tomorrow" → isQuery: false, intent: "todo_creation", keywords: [], response: "", matchingTodoIds: [], confidence: 0.98, confidenceReason: "Clear action item with future date"`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });

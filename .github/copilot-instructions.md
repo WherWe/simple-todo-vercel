@@ -149,6 +149,34 @@ interface Draft {
 - **Visual design**: Purple gradient panel below chat input with white text
 - **Auto-updates**: Re-renders on every todo change (no separate state needed)
 
+### 12. Intelligent Model Selection (CRITICAL)
+
+- **Adaptive AI**: System automatically selects model tier based on task complexity
+- **Model tiers**:
+  - **Fast** (default): Haiku 4.5 / o4-mini - 10-20x cheaper, handles 80% of requests
+  - **Advanced** (escalated): Sonnet 4.5 / GPT-4.1 - Complex reasoning, long context
+- **Two-stage escalation**:
+  1. **Pre-request**: Analyze input complexity → select tier before API call
+  2. **Post-response**: Check confidence/results → escalate if needed (max 1 retry)
+- **Pre-request triggers** (select advanced upfront):
+  - Long input (>1k tokens or >2 paragraphs)
+  - Complex date patterns ("every other weekday", "until quarter end", timezone refs)
+  - Multiple constraints (2+ "and"/"but"/"except" keywords)
+  - Summarization requests ("overview", "plan", "suggest focus areas")
+  - Ambiguous input (multiple questions, "maybe/perhaps", "or" alternatives)
+- **Post-response triggers** (fast → advanced retry):
+  - Model confidence < 0.7 (self-reported by AI)
+  - Zero matches when query clearly asks about existing todos
+  - Too many matches (>100 results or >90% of todos for specific query)
+- **Confidence scoring**: AI models return `{confidence: 0.95, confidenceReason: "..."}` in responses
+- **Implementation**:
+  - `src/lib/modelSelector.ts` - Selection logic + validation
+  - `validateQueryResults()` - Detects suspicious response patterns
+  - `isLowConfidence()` - Checks confidence threshold (0.7)
+  - `MAX_ESCALATIONS_PER_REQUEST = 1` - Cost guardrail
+- **Observability**: Server logs show tier, reason, confidence, escalations
+- **Cost optimization**: ~80% fast tier, ~15% pre-escalated, ~5% post-escalated
+
 ## Development Workflows
 
 ```bash
@@ -163,10 +191,11 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 ## Key Files
 
 - `src/lib/db.ts` - Database schema and connection (single source of truth for data structure)
+- `src/lib/modelSelector.ts` - Intelligent AI model selection logic (NEW)
 - `src/app/api/todos/route.ts` - GET all todos, POST new todo
 - `src/app/api/todos/[id]/route.ts` - PUT update, DELETE todo
-- `src/app/api/ai/extract/route.ts` - AI todo extraction from rambling text
-- `src/app/api/ai/query/route.ts` - AI query detection and filtering
+- `src/app/api/ai/extract/route.ts` - AI todo extraction from rambling text (with adaptive model selection)
+- `src/app/api/ai/query/route.ts` - AI query detection and filtering (with confidence-based escalation)
 - `src/components/TodoApp.tsx` - Main UI component (inline editing, async operations, query detection, search/filters, summary)
 - `drizzle.config.ts` - Drizzle config (uses `POSTGRES_URL` env var)
 
@@ -175,6 +204,8 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 - `POSTGRES_URL` - Required. Set by Vercel when Neon database is connected to project
 - `ANTHROPIC_API_KEY` - Optional. For Claude AI features (tried first)
 - `OPENAI_API_KEY` - Optional. For OpenAI GPT features (fallback)
+- `CLERK_SECRET_KEY` - Required. Server-side Clerk authentication
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Required. Public Clerk key for frontend
 - No `.env.local` needed for deployed environments (Vercel injects vars automatically)
 
 ## Common Gotchas
@@ -187,42 +218,12 @@ npm run db:studio     # Open Drizzle Studio for DB inspection
 6. **Timer cleanup**: Clear old `queryClearTimer` before setting new one, cleanup in useEffect unmount
 7. **Filter cascade**: Apply AI query filter FIRST in `getFilteredTodos()`, then manual filters (search/priority/tags/status/date)
 8. **Search highlighting**: Use `highlightSearchTerm()` to wrap matches in `<span className="bg-yellow-200">` - handles case-insensitive matching
-
-- **Auto-updates**: Re-renders on every todo change (no separate state needed)
-  - Matching todos get `ring-2 ring-blue-400` highlight
-  - Non-matching todos fade to `opacity-30`
-  - Auto-clear after 10 seconds
-- **API endpoint**: `POST /api/ai/query` - Uses OpenAI GPT-4o (Anthropic fallback available)
-
-## Development Workflows
-
-```bash
-npm run dev           # Dev server on :3000
-npm run build         # Test production build (catches type errors)
-npm run db:push       # Push Drizzle schema to database
-npm run db:studio     # Open Drizzle Studio for DB inspection
-```
-
-**Deployment**: Push to `main` branch → Vercel auto-deploys (Git integration configured, no manual `vercel` CLI needed)
-
-## Key Files
-
-- `src/lib/db.ts` - Database schema and connection (single source of truth for data structure)
-- `src/app/api/todos/route.ts` - GET all todos, POST new todo
-- `src/app/api/todos/[id]/route.ts` - PUT update, DELETE todo
-- `src/app/api/ai/extract/route.ts` - AI todo extraction from rambling text
-- `src/app/api/ai/query/route.ts` - AI query detection and filtering (NEW)
-- `src/components/TodoApp.tsx` - Main UI component (inline editing, async operations, query detection)
-- `drizzle.config.ts` - Drizzle config (uses `POSTGRES_URL` env var)
-
-## Environment Variables
-
-- `POSTGRES_URL` - Required. Set by Vercel when Neon database is connected to project
-- No `.env.local` needed for deployed environments (Vercel injects vars automatically)
-
-## Common Gotchas
-
-1. **Inline styles over Tailwind**: Inputs use `text-black bg-white` classes + CSS override due to dark mode conflict
-2. **API error handling**: Check for table existence errors (`relation "todos" does not exist`) → return 503 with `needsSetup: true`
-3. **Timestamps**: Database stores `timestamp`, API returns ISO strings, frontend displays as-is (no Date parsing needed for display)
-4. **Auto-deployment**: Don't run `npx vercel --prod` manually - Git push triggers Vercel build automatically
+9. **Model selection**: System auto-selects fast (Haiku/o4-mini) or advanced (Sonnet/GPT-4.1) based on complexity - check server logs for reasoning
+10. **Confidence escalation**: Fast model responses with confidence < 0.7 or suspicious patterns (0 matches, >100 matches) auto-retry with advanced model (max 1 retry)
+11. **Timestamps**: Database stores `timestamp`, API returns ISO strings, frontend displays as-is (no Date parsing needed for display)
+12. **Auto-deployment**: Don't run `npx vercel --prod` manually - Git push triggers Vercel build automatically
+13. **AI query ID matching**: Always show `ID ${t.id}:` in prompts, never numbered lists (prevents index/ID confusion)
+14. **Timer cleanup**: Clear old `queryClearTimer` before setting new one, cleanup in useEffect unmount
+15. **Filter cascade**: Apply AI query filter FIRST in `getFilteredTodos()`, then manual filters (search/priority/tags/status/date)
+16. **Search highlighting**: Use `highlightSearchTerm()` to wrap matches in `<span className="bg-yellow-200">` - handles case-insensitive matching
+17. **Model selection**: System auto-selects fast (Haiku/o4-mini) or advanced (Sonnet/GPT-4.1) based on complexity - check server logs for reasoning

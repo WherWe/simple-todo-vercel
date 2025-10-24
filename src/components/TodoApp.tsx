@@ -2,36 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { UserButton } from "@clerk/nextjs";
-
-// Tagline collection
-const TAGLINES = [
-  "Procrastinate. Annotate. Dominate.",
-  "Turn your brain dump into a to-do list before the motivation evaporates.",
-  "For when your rambling deserves a productivity badge.",
-  "The only app that gets you… eventually.",
-  "Because talking to yourself is project management.",
-  "Your procrastination, now neatly itemized.",
-  "Where chaos meets checkbox.",
-  "AI that listens to your nonsense — and still makes a plan.",
-  "From rant to responsibility.",
-  "Finally, a productivity app for the chronically distracted.",
-  "Built for the modern multitasker (aka professional procrastinator).",
-  "Think less. Dump more. Get stuff done.",
-  "Optimizing human inefficiency through AI.",
-  "Like Todoist, but slightly less judgmental.",
-  "Your thoughts. Organized-ish.",
-  "Because your ideas deserve a checklist — even the weird ones.",
-  "AI that listens, sorts, and politely suggests you get on with it.",
-  "The almost-organized to-do list.",
-  "Productivity with personality.",
-  "Smart enough to understand your chaos.",
-  "Todoish: because done-ish is good enough.",
-  "Turns your stream of consciousness into a stream of checkmarks.",
-  "Get things done (or at least written down).",
-  "Smarter to-dos for messier minds.",
-  "Revolutionizing the art of almost doing stuff.",
-  "Less list. More life.",
-];
+import { getRandomTagline, getTopTagline } from "@/lib/taglines";
+import Link from "next/link";
 
 interface Todo {
   id: number;
@@ -101,19 +73,44 @@ export default function TodoApp() {
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleRange, setScheduleRange] = useState<"today" | "tomorrow" | "week">("today");
 
-  // Rotating tagline state (changes every 5 seconds)
-  const [currentTagline, setCurrentTagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+  // Official tagline (static - top ranked)
+  const officialTagline = getTopTagline();
 
-  // Page load quote (static per session)
-  const [pageQuote] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
+  // Rotating banner quote (changes every 5 seconds with weighted probability)
+  const [bannerQuote, setBannerQuote] = useState(() => getRandomTagline());
+  const [quoteKey, setQuoteKey] = useState(0);
+  const [recentlyUsedQuotes, setRecentlyUsedQuotes] = useState<string[]>([]);
 
-  // Rotate tagline every 5 seconds
+  // Rotate banner quote every 10 seconds with anti-repeat logic
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTagline(TAGLINES[Math.floor(Math.random() * TAGLINES.length)]);
-    }, 5000);
+      // Get a new quote that hasn't been used recently
+      let newQuote = getRandomTagline();
+      let attempts = 0;
+      const maxAttempts = 50; // Prevent infinite loop
+
+      // Keep trying until we get a quote not in the recent list (or max attempts)
+      while (recentlyUsedQuotes.includes(newQuote) && attempts < maxAttempts) {
+        newQuote = getRandomTagline();
+        attempts++;
+      }
+
+      setBannerQuote(newQuote);
+      setQuoteKey((prev) => prev + 1);
+
+      // Add to recently used list
+      setRecentlyUsedQuotes((prev) => {
+        const updated = [...prev, newQuote];
+        // Keep only the last 30% of unique taglines (approx 9 out of 30 taglines)
+        const maxRecentSize = Math.ceil(30 * 0.3); // 30 total taglines * 30% = 9
+        if (updated.length > maxRecentSize) {
+          return updated.slice(-maxRecentSize); // Keep most recent entries
+        }
+        return updated;
+      });
+    }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [recentlyUsedQuotes]);
 
   // Load todos from API on component mount
   useEffect(() => {
@@ -179,7 +176,10 @@ export default function TodoApp() {
       "No Due Date": [],
     };
 
-    todos.forEach((todo) => {
+    // Only group active (incomplete) todos by date
+    const activeTodos = todos.filter((todo) => !todo.completed);
+
+    activeTodos.forEach((todo) => {
       if (!todo.dueDate) {
         groups["No Due Date"].push(todo);
         return;
@@ -1147,9 +1147,7 @@ export default function TodoApp() {
               <div className="text-3xl">✨</div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">todoish</h1>
-                <p className="text-xs text-gray-500 transition-opacity duration-300" suppressHydrationWarning>
-                  {currentTagline}
-                </p>
+                <p className="text-xs text-gray-500">{officialTagline}</p>
               </div>
             </div>
 
@@ -1159,6 +1157,9 @@ export default function TodoApp() {
               <nav className="hidden md:flex items-center gap-4">
                 <button className="text-sm text-gray-600 hover:text-purple-600 transition-colors font-medium">Guide</button>
                 <button className="text-sm text-gray-600 hover:text-purple-600 transition-colors font-medium">About</button>
+                <Link href="/settings" className="text-sm text-gray-600 hover:text-purple-600 transition-colors font-medium">
+                  Settings
+                </Link>
               </nav>
 
               {/* User Profile */}
@@ -1174,13 +1175,13 @@ export default function TodoApp() {
         </div>
       </header>
 
-      {/* Featured Quote Banner */}
+      {/* Featured Quote Banner - Rotating weighted taglines */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 border-b border-purple-700">
         <div className="max-w-7xl mx-auto px-6 py-6">
           <div className="flex items-center justify-center gap-3">
             <span className="text-2xl">💭</span>
-            <p className="text-white text-center font-medium text-lg italic" suppressHydrationWarning>
-              "{pageQuote}"
+            <p key={quoteKey} className="text-white text-center font-medium text-lg italic animate-fade-in" suppressHydrationWarning>
+              "{bannerQuote}"
             </p>
           </div>
         </div>
@@ -1585,59 +1586,160 @@ export default function TodoApp() {
                   const groupedTodos = groupTodosByDate(todosToDisplay);
                   const groupOrder = ["Overdue", "Today", "Tomorrow", "This Week", "Later", "No Due Date"];
 
-                  return groupOrder.map((groupName) => {
-                    const groupTodos = groupedTodos[groupName];
-                    if (groupTodos.length === 0) return null;
+                  // Get completed todos from ALL todos (not filtered) unless status filter is specifically "active"
+                  const completedTodos = statusFilter === "active" ? [] : todos.filter((todo) => todo.completed);
 
-                    return (
-                      <div key={groupName} className="space-y-2">
-                        {/* Group Header */}
-                        <div className="flex items-center gap-2">
-                          <h3 className={`text-sm font-semibold uppercase tracking-wide ${groupName === "Overdue" ? "text-red-600" : groupName === "Today" ? "text-purple-600" : "text-gray-600"}`}>
-                            {groupName}
-                            <span className="ml-2 text-xs font-normal text-gray-500">({groupTodos.length})</span>
-                          </h3>
-                          <div className="flex-1 h-px bg-gray-200"></div>
-                        </div>
+                  return (
+                    <>
+                      {/* Active todos grouped by date */}
+                      {groupOrder.map((groupName) => {
+                        const groupTodos = groupedTodos[groupName];
+                        if (groupTodos.length === 0) return null;
 
-                        {/* Todos in this group */}
-                        {groupTodos.map((todo) => {
-                          // Highlight if this is from an active AI query
-                          const shouldHighlight = activeQuery && filteredTodoIds.has(todo.id);
+                        return (
+                          <div key={groupName} className="space-y-2">
+                            {/* Group Header */}
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-sm font-semibold uppercase tracking-wide ${groupName === "Overdue" ? "text-red-600" : groupName === "Today" ? "text-purple-600" : "text-gray-600"}`}>
+                                {groupName}
+                                <span className="ml-2 text-xs font-normal text-gray-500">({groupTodos.length})</span>
+                              </h3>
+                              <div className="flex-1 h-px bg-gray-200"></div>
+                            </div>
 
-                          return (
-                            <div
-                              key={todo.id}
-                              className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${shouldHighlight ? "ring-2 ring-blue-400 shadow-lg" : ""} ${
-                                todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"
-                              } ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
-                            >
-                              <div className="flex items-center p-3">
-                                <input
-                                  type="checkbox"
-                                  checked={todo.completed}
-                                  onChange={() => toggleTodo(todo.id)}
-                                  className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                />
+                            {/* Todos in this group */}
+                            {groupTodos.map((todo) => {
+                              // Highlight if this is from an active AI query
+                              const shouldHighlight = activeQuery && filteredTodoIds.has(todo.id);
 
-                                {editingId === todo.id ? (
+                              return (
+                                <div
+                                  key={todo.id}
+                                  className={`border rounded-lg transition-all ${newTodoIds.has(todo.id) ? "todo-appear" : ""} ${shouldHighlight ? "ring-2 ring-blue-400 shadow-lg" : ""} ${
+                                    todo.completed ? "bg-gray-50 border-gray-200" : "bg-white border-gray-300"
+                                  } ${todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""}`}
+                                >
+                                  <div className="flex items-center p-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={todo.completed}
+                                      onChange={() => toggleTodo(todo.id)}
+                                      className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+
+                                    {editingId === todo.id ? (
+                                      <input
+                                        type="text"
+                                        value={editText}
+                                        onChange={(e) => setEditText(e.target.value)}
+                                        onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
+                                        onBlur={() => saveEdit(todo.id)}
+                                        autoFocus
+                                        className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
+                                      />
+                                    ) : (
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span
+                                            className={`cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
+                                            onClick={() => startEdit(todo.id, todo.text)}
+                                            title="Click to edit"
+                                          >
+                                            {highlightSearchTerm(todo.text)}
+                                          </span>
+                                          {todo.aiGenerated && (
+                                            <span className="text-xs text-purple-500" title="AI Generated">
+                                              ✨
+                                            </span>
+                                          )}
+                                          {todo.priority === "high" && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full">High</span>}
+                                          {todo.priority === "low" && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full">Low</span>}
+                                        </div>
+                                        {(todo.tags.length > 0 || todo.dueDate || todo.context) && (
+                                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                            {todo.tags.map((tag) => (
+                                              <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                                #{tag}
+                                              </span>
+                                            ))}
+                                            {todo.dueDate && (
+                                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full" title="Due date">
+                                                📅 {new Date(todo.dueDate).toLocaleDateString()}
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                        {todo.context && (
+                                          <div className="mt-1 text-xs text-gray-500 italic" title="Original context">
+                                            "{todo.context}"
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    <div className="flex gap-1 ml-3">
+                                      {editingId === todo.id ? (
+                                        <>
+                                          <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
+                                            ✓
+                                          </button>
+                                          <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
+                                            ✕
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
+                                            ✏️
+                                          </button>
+                                          <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
+                                            ✕
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+
+                      {/* Completed todos section */}
+                      {completedTodos.length > 0 && (
+                        <div className="space-y-2 mt-6">
+                          {/* Completed Header */}
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-green-600">
+                              Completed
+                              <span className="ml-2 text-xs font-normal text-gray-500">({completedTodos.length})</span>
+                            </h3>
+                            <div className="flex-1 h-px bg-gray-200"></div>
+                          </div>
+
+                          {/* Completed Todos */}
+                          {completedTodos.map((todo) => {
+                            const shouldHighlight = activeQuery && filteredTodoIds.has(todo.id);
+
+                            return (
+                              <div
+                                key={todo.id}
+                                className={`border rounded-lg transition-all ${shouldHighlight ? "ring-2 ring-blue-400 shadow-lg" : ""} bg-gray-50 border-gray-200 ${
+                                  todo.aiGenerated ? "border-l-4 border-l-purple-400 shadow-md" : ""
+                                }`}
+                              >
+                                <div className="flex items-center p-3">
                                   <input
-                                    type="text"
-                                    value={editText}
-                                    onChange={(e) => setEditText(e.target.value)}
-                                    onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
-                                    onBlur={() => saveEdit(todo.id)}
-                                    autoFocus
-                                    className="flex-1 px-2 py-1 border-2 border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-black bg-white text-base"
+                                    type="checkbox"
+                                    checked={todo.completed}
+                                    onChange={() => toggleTodo(todo.id)}
+                                    className="mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                   />
-                                ) : (
+
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span
-                                        className={`cursor-pointer ${todo.completed ? "line-through text-gray-500" : "text-gray-800"}`}
-                                        onClick={() => startEdit(todo.id, todo.text)}
-                                        title="Click to edit"
-                                      >
+                                      <span className="line-through text-gray-500 cursor-pointer" onClick={() => startEdit(todo.id, todo.text)} title="Click to edit">
                                         {highlightSearchTerm(todo.text)}
                                       </span>
                                       {todo.aiGenerated && (
@@ -1648,56 +1750,35 @@ export default function TodoApp() {
                                       {todo.priority === "high" && <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded-full">High</span>}
                                       {todo.priority === "low" && <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full">Low</span>}
                                     </div>
-                                    {(todo.tags.length > 0 || todo.dueDate || todo.context) && (
+                                    {(todo.tags.length > 0 || todo.dueDate) && (
                                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
                                         {todo.tags.map((tag) => (
-                                          <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                          <span key={tag} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full opacity-60">
                                             #{tag}
                                           </span>
                                         ))}
                                         {todo.dueDate && (
-                                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full" title="Due date">
+                                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full opacity-60" title="Due date">
                                             📅 {new Date(todo.dueDate).toLocaleDateString()}
                                           </span>
                                         )}
                                       </div>
                                     )}
-                                    {todo.context && (
-                                      <div className="mt-1 text-xs text-gray-500 italic" title="Original context">
-                                        "{todo.context}"
-                                      </div>
-                                    )}
                                   </div>
-                                )}
 
-                                <div className="flex gap-1 ml-3">
-                                  {editingId === todo.id ? (
-                                    <>
-                                      <button onClick={() => saveEdit(todo.id)} className="px-2 py-1 text-green-600 hover:bg-green-50 rounded transition-colors" title="Save">
-                                        ✓
-                                      </button>
-                                      <button onClick={cancelEdit} className="px-2 py-1 text-gray-600 hover:bg-gray-50 rounded transition-colors" title="Cancel">
-                                        ✕
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <button onClick={() => startEdit(todo.id, todo.text)} className="px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors" title="Edit todo">
-                                        ✏️
-                                      </button>
-                                      <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
-                                        ✕
-                                      </button>
-                                    </>
-                                  )}
+                                  <div className="flex gap-1 ml-3">
+                                    <button onClick={() => deleteTodo(todo.id)} className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete todo">
+                                      ✕
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  });
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  );
                 })()
               )}
             </div>

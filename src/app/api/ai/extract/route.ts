@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { auth } from "@clerk/nextjs/server";
+import { trackUsage } from "@/lib/trackUsage";
+import { selectExtractionModel } from "@/lib/modelSelector";
 
 // Interface for extracted todo items
 interface ExtractedTodo {
@@ -48,7 +50,7 @@ Rules:
 - Priority: high = urgent/important, medium = normal, low = someday/maybe`;
 
 // Try Anthropic Claude first
-async function extractWithClaude(text: string): Promise<ExtractedTodo[]> {
+async function extractWithClaude(text: string, model: string): Promise<ExtractedTodo[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY not configured");
@@ -57,7 +59,7 @@ async function extractWithClaude(text: string): Promise<ExtractedTodo[]> {
   const anthropic = new Anthropic({ apiKey });
 
   const message = await anthropic.messages.create({
-    model: "claude-3-5-sonnet-20241022",
+    model,
     max_tokens: 2000,
     messages: [
       {
@@ -77,7 +79,7 @@ async function extractWithClaude(text: string): Promise<ExtractedTodo[]> {
 }
 
 // Fallback to OpenAI GPT
-async function extractWithOpenAI(text: string): Promise<ExtractedTodo[]> {
+async function extractWithOpenAI(text: string, model: string): Promise<ExtractedTodo[]> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY not configured");
@@ -86,7 +88,7 @@ async function extractWithOpenAI(text: string): Promise<ExtractedTodo[]> {
   const openai = new OpenAI({ apiKey });
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages: [
       {
         role: "system",
@@ -109,14 +111,21 @@ async function extractWithOpenAI(text: string): Promise<ExtractedTodo[]> {
   return response.todos;
 }
 
-// Main extraction function with fallback logic
-async function extractTodos(text: string): Promise<ExtractedTodo[]> {
+// Main extraction function with fallback logic and intelligent model selection
+async function extractTodos(text: string, userId: string): Promise<ExtractedTodo[]> {
   const errors: string[] = [];
+
+  // Intelligently select model based on complexity
+  const modelSelection = selectExtractionModel(text);
+  console.log(`Model selection: ${modelSelection.tier} tier - ${modelSelection.reason}`);
+  console.log(`Selected models: Anthropic=${modelSelection.anthropicModel}, OpenAI=${modelSelection.openaiModel}`);
 
   // Try Claude first
   try {
-    console.log("Attempting extraction with Claude...");
-    return await extractWithClaude(text);
+    console.log(`Attempting extraction with Claude (${modelSelection.anthropicModel})...`);
+    const result = await extractWithClaude(text, modelSelection.anthropicModel);
+    await trackUsage(userId, "extract", "anthropic", modelSelection.anthropicModel);
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Claude extraction failed:", errorMessage);
@@ -125,8 +134,10 @@ async function extractTodos(text: string): Promise<ExtractedTodo[]> {
 
   // Fallback to OpenAI
   try {
-    console.log("Attempting extraction with OpenAI...");
-    return await extractWithOpenAI(text);
+    console.log(`Attempting extraction with OpenAI (${modelSelection.openaiModel})...`);
+    const result = await extractWithOpenAI(text, modelSelection.openaiModel);
+    await trackUsage(userId, "extract", "openai", modelSelection.openaiModel);
+    return result;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("OpenAI extraction failed:", errorMessage);
@@ -154,7 +165,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract todos using AI
-    const extractedTodos = await extractTodos(text);
+    const extractedTodos = await extractTodos(text, userId);
 
     // Return extracted todos
     return NextResponse.json({

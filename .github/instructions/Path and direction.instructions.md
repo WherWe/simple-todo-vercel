@@ -88,7 +88,8 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
 5. ✅ Implement query detection and filtering (DONE - Smart query detection with AI responses)
 6. ✅ Advanced search & quick filters (DONE - Live search + Priority/Tags/Status/Date filters)
 7. ✅ Conversational summary panel (DONE - "What's Ahead" narrative with markdown parsing)
-8. 🎯 Add AI provider configuration UI
+8. ✅ Intelligent model selection (DONE - Adaptive fast/advanced tier based on complexity)
+9. 🎯 Add AI provider configuration UI
 
 ## Phase 2 Priorities (Polish & Power Features)
 
@@ -146,6 +147,13 @@ Transform the simple todo app into an **AI-powered task assistant** where users 
 - **Cascade Dependencies**: `useEffect([drafts.length, isProcessing])` triggers correctly, `[drafts]` causes re-render loops.
 - **Set for IDs**: Use `Set<number>` for filtered IDs - O(1) lookup vs array search.
 - **Cleanup Everything**: Timers, listeners, subscriptions - assume unmount happens anytime.
+
+### Intelligent Model Selection
+
+- **Fast by default**: 80% of requests use cheap models (Haiku 4.5 / o4-mini) - simple, short inputs.
+- **Escalation triggers**: Long input, complex dates, multiple constraints, summarization, ambiguity.
+- **Cost-aware**: System automatically balances quality vs cost based on actual complexity.
+- **Observability**: Server logs show tier selection reason for debugging and optimization.
 
 ## 📝 Documentation Requirements (CRITICAL)
 
