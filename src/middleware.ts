@@ -1,7 +1,17 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Using Account Portal mode - no embedded sign-in pages needed
-export default clerkMiddleware();
+// Define public routes (everything else requires authentication)
+const isPublicRoute = createRouteMatcher([
+  "/api/setup(.*)",
+  "/setup(.*)",
+]);
+
+export default clerkMiddleware(async (auth, request) => {
+  // Protect all routes except public ones
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
+});
 
 export const config = {
   matcher: [
