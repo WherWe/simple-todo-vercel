@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://todoish.vercel.app"), // Update with your actual domain
+  metadataBase: new URL("https://todoish.online"),
   title: {
     default: "todoish - AI-powered task management",
     template: "%s | todoish",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://todoish.vercel.app",
+    url: "https://todoish.online",
     title: "todoish - AI-powered task management",
     description: "Just ramble, and let AI organize your tasks. Smart todo app with natural language processing.",
     siteName: "todoish",
